@@ -7,7 +7,7 @@
 
 // Must match manifest.json (a test checks). Compared with the running integration so a
 // tab still holding old page code after an update says so.
-const PAGE_VERSION = "0.2.1";
+const PAGE_VERSION = "0.2.2";
 
 const ERRORS = {
   invalid_name: null, // the server's own words are right
@@ -88,7 +88,7 @@ class SceneSetterBase extends HTMLElement {
     this._dialog = null; // {kind, room, scene, value, error, busy}
     this._settings = false; // the room's settings are open (page only)
     this._pressed = null; // scene just turned on (for a moment)
-    this._sort = loadPref("sort", "name") === "level" ? "level" : "name"; // how scenes are listed
+    this._sort = loadPref("sort", "level") === "name" ? "name" : "level"; // how scenes are listed (brightest first unless A-Z was chosen)
     this._shown = "";
     this._onFeed = () => this._render();
     this._onKey = (e) => {

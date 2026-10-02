@@ -4,13 +4,13 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.2.1).** Install through HACS as a custom repository.
+**Status: early development (0.2.2).** Install through HACS as a custom repository.
 
 ## What you get
 
 - **A sidebar page**, open to everyone in the household:
   - **Rooms**: every Home Assistant area that has lights or covers, grouped by floor, with its saved scenes.
-  - **A room**: its lights and blinds as they are now (tap one to open its controls), a large **Save current scene** button, and its saved scenes. Tap a scene to turn it on. Each scene has **Update** (save the room as it is now over it), **Rename** and **Delete**. A scene the room currently matches is marked *On now*. Scenes are listed A–Z, or brightest first (every light's brightness in the scene added up), chosen with the switch above the list and remembered in that browser.
+  - **A room**: its lights and blinds as they are now (tap one to open its controls), a large **Save current scene** button, and its saved scenes. Tap a scene to turn it on. Each scene has **Update** (save the room as it is now over it), **Rename** and **Delete**. A scene the room currently matches is marked *On now*. Scenes are listed brightest first, or A–Z (every light's brightness in the scene added up), chosen with the switch above the list and remembered in that browser. Brightest first is the default.
   - **What this room saves** (administrators only): untick a light or blind the room's scenes should leave alone, or add one from another area.
 - **A dashboard card** with the same room view, for a room's own dashboard:
 
