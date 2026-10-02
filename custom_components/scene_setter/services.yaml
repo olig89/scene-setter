@@ -1,0 +1,33 @@
+save:
+  fields:
+    area_id:
+      required: false
+      selector:
+        area:
+    name:
+      required: false
+      selector:
+        text:
+    scene:
+      required: false
+      selector:
+        entity:
+          domain: scene
+rename:
+  fields:
+    scene:
+      required: true
+      selector:
+        entity:
+          domain: scene
+    name:
+      required: true
+      selector:
+        text:
+delete:
+  fields:
+    scene:
+      required: true
+      selector:
+        entity:
+          domain: scene

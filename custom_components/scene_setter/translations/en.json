@@ -1,0 +1,57 @@
+{
+  "config": {
+    "abort": {
+      "single_instance_allowed": "Scene Setter is already set up. Open it from the sidebar."
+    },
+    "step": {
+      "user": {
+        "title": "Scene Setter",
+        "description": "Save a room's lights and blinds, as they are now, as a named scene. There is nothing to fill in: the rooms are your Home Assistant areas, and each room saves the lights and blinds in its area."
+      }
+    }
+  },
+  "services": {
+    "save": {
+      "name": "Save a room as a scene",
+      "description": "Saves the room's lights and blinds, as they are now, as a scene. A scene of the same name in that room is saved over.",
+      "fields": {
+        "area_id": {
+          "name": "Room",
+          "description": "The area to save. Not needed when a scene to save over is given."
+        },
+        "name": {
+          "name": "Name",
+          "description": "What to call the scene in its room, such as Evening. Not needed when saving over a scene."
+        },
+        "scene": {
+          "name": "Scene to save over",
+          "description": "Optional. Save the room as it is now over this scene, keeping its name unless a name is given."
+        }
+      }
+    },
+    "rename": {
+      "name": "Rename a scene",
+      "description": "Changes a scene's name. Its entity ID stays the same, so anything that turns the scene on keeps working.",
+      "fields": {
+        "scene": {
+          "name": "Scene",
+          "description": "The scene to rename."
+        },
+        "name": {
+          "name": "New name",
+          "description": "The scene's new name in its room."
+        }
+      }
+    },
+    "delete": {
+      "name": "Delete a scene",
+      "description": "Deletes a scene made in Home Assistant.",
+      "fields": {
+        "scene": {
+          "name": "Scene",
+          "description": "The scene to delete."
+        }
+      }
+    }
+  }
+}

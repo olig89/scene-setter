@@ -1,0 +1,24 @@
+{
+  "domain": "scene_setter",
+  "name": "Scene Setter",
+  "after_dependencies": [
+    "frontend",
+    "panel_custom"
+  ],
+  "codeowners": [
+    "@olig89"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "scene",
+    "websocket_api"
+  ],
+  "documentation": "https://github.com/olig89/scene-setter",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/olig89/scene-setter/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
