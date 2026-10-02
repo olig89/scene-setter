@@ -18,6 +18,7 @@ Home Assistant custom integration. Saves a room's lights and covers, as they are
 
 - Scenes live only in Home Assistant's `scenes.yaml`. There is no store of our own. A scene belongs to a room through the scene entity's area.
 - Scene name in HA is `<Area name> <name>`; the room shows it without the area. Rename changes the name only, never the entity ID.
+- A new scene's entity ID is claimed in the entity registry before the reload, from the name without apostrophes (`core/names.py::id_text`): `scene.olis_office_dim`, not `oli_s_`. Display names keep apostrophes. A failed save removes the claim.
 - Unreachable entities (`unavailable` / `unknown`) are left out of a scene, never saved as off.
 - A group (state has an `entity_id` list) is replaced by its members.
 - Only the colour attribute of the light's current `color_mode` is saved.

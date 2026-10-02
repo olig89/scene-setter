@@ -10,6 +10,7 @@ No Home Assistant imports.
 from __future__ import annotations
 
 MAX_NAME = 60
+APOSTROPHES = "'’‘ʼ`"
 
 
 class SceneNameError(ValueError):
@@ -41,6 +42,16 @@ def short_name(room: str, full: str) -> str:
     if room and full.casefold().startswith(prefix) and full[len(prefix):].strip():
         return full[len(prefix):].strip()
     return full
+
+
+def id_text(full: str) -> str:
+    """The text a new scene's entity id is made from: ``full`` without apostrophes.
+
+    Home Assistant turns an apostrophe into an underscore, so "Oli's Office Dim"
+    would become ``scene.oli_s_office_dim``. Dropping them gives
+    ``scene.olis_office_dim``. The name people see keeps its apostrophes.
+    """
+    return "".join(c for c in full if c not in APOSTROPHES)
 
 
 def same_name(a: str, b: str) -> bool:

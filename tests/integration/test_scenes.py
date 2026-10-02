@@ -97,6 +97,45 @@ async def test_save_over_a_given_scene_keeps_its_name(hass, house):
     assert scene["entities"]["cover.blind"] == {"state": "closed", "current_position": 0}
 
 
+async def test_apostrophe_is_dropped_from_the_entity_id_not_the_name(hass, house):
+    office = house.area("Oli's Office")
+    house.add("light.desk", "on", {"brightness": 90, "color_mode": "brightness"}, office)
+
+    result = await save(hass, area_id=office, name="Dim")
+
+    assert result["scene"] == "scene.olis_office_dim"
+    assert hass.states.get("scene.olis_office_dim").attributes["friendly_name"] == "Oli's Office Dim"
+    assert stored(house)[0]["name"] == "Oli's Office Dim"
+    assert [s.name for s in house.setter.scenes(office)] == ["Dim"]
+
+    again = await save(hass, area_id=office, name="dim")
+    assert again["scene"] == "scene.olis_office_dim"
+    assert again["created"] is False
+
+
+async def test_entity_id_already_taken_gets_a_number(hass, house):
+    house.add("scene.kitchen_evening", "unknown")
+
+    result = await save(hass, area_id="kitchen", name="Evening")
+
+    assert result["scene"] == "scene.kitchen_evening_2"
+
+
+async def test_failed_save_leaves_no_claimed_entity_id(hass, house, monkeypatch):
+    monkeypatch.setattr("custom_components.scene_setter.setter.SCENE_WAIT_S", 0.2)
+
+    async def no_scene(self, config_id):
+        return None
+
+    monkeypatch.setattr("custom_components.scene_setter.setter.SceneSetter._entity_of", no_scene)
+
+    with pytest.raises(Exception):
+        await save(hass, area_id="kitchen", name="Evening")
+
+    assert stored(house) == []
+    assert er.async_get(hass).async_get("scene.kitchen_evening") is None
+
+
 async def test_unreachable_light_is_left_out_not_saved_as_off(hass, house):
     hass.states.async_set("light.counter", "unavailable")
 

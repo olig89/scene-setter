@@ -34,7 +34,7 @@ from homeassistant.util.yaml import dump, load_yaml
 
 from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_ROOMS, IGNORE_LABEL
 from .core.capture import DOMAINS, domain_of, entry_for
-from .core.names import SceneNameError, clean_name, full_name, same_name, short_name
+from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
 SCENE = "scene"
 HA_SCENES = "homeassistant"  # the platform of scenes made in Home Assistant
@@ -346,10 +346,18 @@ class SceneSetter:
                 data.append(config)
             else:
                 data[data.index(old)] = config
+            if new:
+                # Claim the entity id before Home Assistant makes one from the name,
+                # so an apostrophe doesn't become an underscore (olis_, not oli_s_).
+                registry.async_get_or_create(
+                    SCENE, HA_SCENES, config_id, suggested_object_id=id_text(config[CONF_NAME])
+                )
             await self._store(data)
             entity_id = await self._entity_of(config_id)
             if entity_id is None:
                 await self._store(before)
+                if new and (claimed := registry.async_get_entity_id(SCENE, HA_SCENES, config_id)):
+                    registry.async_remove(claimed)
                 raise SceneSetterError(
                     "not_loaded",
                     "Home Assistant didn't load the scene. Check that configuration.yaml has the line "
