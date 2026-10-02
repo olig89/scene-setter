@@ -32,7 +32,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
-from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, IGNORE_LABEL
+from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
 from .core.capture import DOMAINS, domain_of, entry_for
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -78,10 +78,17 @@ class SceneInfo:
     full_name: str  # as Home Assistant shows it
     config_id: str | None  # set for scenes made in Home Assistant
     entities: dict[str, dict[str, Any]] | None  # what it sets, when it can be read
+    key: str = ""  # stable across renames: the scene's platform and unique id
+    area_id: str | None = None
+    registry_id: str = ""  # the scene's entity registry entry
 
     @property
     def editable(self) -> bool:
         return self.config_id is not None
+
+    @property
+    def active_sensor_key(self) -> str:
+        return f"active_{self.key}"
 
 
 def _read(path: str) -> list[dict[str, Any]] | None:
@@ -202,7 +209,14 @@ class SceneSetter:
         full = entity.name or (state and state.attributes.get("friendly_name")) or entity.original_name or entity.entity_id
         config_id = entity.unique_id if entity.platform == HA_SCENES else None
         return SceneInfo(
-            entity.entity_id, short_name(room, str(full)), str(full), config_id, self._scene_states(entity.entity_id)
+            entity.entity_id,
+            short_name(room, str(full)),
+            str(full),
+            config_id,
+            self._scene_states(entity.entity_id),
+            key=f"{entity.platform}_{entity.unique_id or entity.id}",
+            area_id=entity.area_id,
+            registry_id=entity.id,
         )
 
     def scenes(self, area_id: str) -> list[SceneInfo]:
@@ -215,6 +229,17 @@ class SceneSetter:
             and self.hass.states.get(e.entity_id) is not None
         ]
         return sorted(found, key=lambda s: s.name.casefold())
+
+    def all_scenes(self) -> list[SceneInfo]:
+        """Every scene that belongs to a room and whose contents can be read."""
+        found: list[SceneInfo] = []
+        for area in ar.async_get(self.hass).async_list_areas():
+            found.extend(s for s in self.scenes(area.id) if s.entities)
+        return found
+
+    def active_sensor(self, scene: SceneInfo) -> str | None:
+        """The entity id of the scene's "on now" sensor, if it has one."""
+        return er.async_get(self.hass).async_get_entity_id("binary_sensor", DOMAIN, scene.active_sensor_key)
 
     def _find(self, scene: str) -> tuple[er.RegistryEntry, str]:
         """The scene's registry entry and config id, from its entity id or config id."""
@@ -471,6 +496,7 @@ class SceneSetter:
                                 "config_id": s.config_id,
                                 "editable": s.editable,
                                 "entities": s.entities,
+                                "active_sensor": self.active_sensor(s),
                             }
                             for s in scenes
                         ],

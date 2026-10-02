@@ -11,7 +11,7 @@ from pathlib import Path
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_STATE_CHANGED
+from homeassistant.const import EVENT_STATE_CHANGED, Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import (
@@ -41,6 +41,8 @@ from .websocket import async_register_websocket
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type SceneSetterConfigEntry = ConfigEntry[SceneSetter]
+
+PLATFORMS = [Platform.BINARY_SENSOR]  # an "on now" sensor for each scene
 
 SAVE_SCHEMA = vol.All(
     vol.Schema(
@@ -151,6 +153,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) 
         entry.async_on_unload(hass.bus.async_listen(event_type, _changed))
     entry.async_on_unload(hass.bus.async_listen(EVENT_STATE_CHANGED, _scene_changed, event_filter=_is_scene))
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await _async_register_frontend(hass)
     _changed()
     return True
@@ -161,8 +164,9 @@ async def _async_options_updated(hass: HomeAssistant, entry: SceneSetterConfigEn
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     async_dispatcher_send(hass, ANY_SIGNAL)
-    return True
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) -> None:

@@ -7,7 +7,7 @@
 
 // Must match manifest.json (a test checks). Compared with the running integration so a
 // tab still holding old page code after an update says so.
-const PAGE_VERSION = "0.1.2";
+const PAGE_VERSION = "0.2.0";
 
 const ERRORS = {
   invalid_name: null, // the server's own words are right
@@ -268,7 +268,12 @@ class SceneSetterBase extends HTMLElement {
   }
 
   // True when the room is as the scene left it (so the list can mark it).
+  // The scene's "on now" sensor decides, so the page agrees with anything else
+  // that uses it (a wall button's light, an automation). Without one (the
+  // sensor was disabled) the page works it out itself, the same way.
   _matches(scene) {
+    const sensor = scene.active_sensor && this._hass.states[scene.active_sensor];
+    if (sensor && sensor.state !== "unavailable" && sensor.state !== "unknown") return sensor.state === "on";
     if (!scene.entities) return false;
     let compared = 0;
     for (const [id, want] of Object.entries(scene.entities)) {

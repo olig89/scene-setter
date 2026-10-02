@@ -4,7 +4,7 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.1.2).** Install through HACS as a custom repository.
+**Status: early development (0.2.0).** Install through HACS as a custom repository.
 
 ## What you get
 
@@ -20,6 +20,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
   ```
 
   It appears in the card picker as *Scene Setter* and needs no resource added by hand. Options: `title`, and `show_now: false` to hide the row of lights and blinds.
+- **An "active" sensor for each scene.** A Home Assistant scene has no on or off: its state is just when it was last turned on. Each scene in a room gets `binary_sensor.<scene>_active` (for example `binary_sensor.kitchen_evening_active`), on while the room is as the scene left it, so a wall button's light, a dashboard or an automation can show or use which scene is on. Its `not_matching` attribute lists the lights and blinds that differ. The page's *On now* mark uses the same sensor.
 - **Three actions**, for automations and scripts: `scene_setter.save` (a room and a name, or a scene to save over), `scene_setter.rename` and `scene_setter.delete`.
 
 ## How it works
@@ -34,6 +35,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 - **Blinds and other covers** are saved with their position, and their slat tilt if they have one.
 - **Anything that can't be reached is left out**, not saved as off. Saving it as off would switch it off every time the scene is used once it comes back. The page says what was left out.
 - **Groups are saved as their members.** A light group in the room is replaced by the lights in it, so a scene never sets both a group and its members. This also brings in group members that have no area of their own.
+- **"Active" allows for rounding.** A light counts as matching within 5 of 255 brightness, 100 K of colour temperature, and a small step of colour; a blind within 3 % of its position and tilt. Anything unreachable is skipped. A colour a light can't report in its current mode isn't held against the scene. The sensor follows its scene: renamed with it, kept in its room, and removed when the scene is deleted.
 - **To keep something out of every scene**, give the entity or its device the label `scene_setter_ignore`. To keep it out of one room's scenes, untick it under *What this room saves*.
 
 ## Install
