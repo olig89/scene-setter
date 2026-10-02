@@ -21,5 +21,4 @@ jobs:
         with:
           category: integration
           # Brand icons are only required for the HACS default store.
-          # Topics are set by hand on GitHub and are not needed to install.
-          ignore: brands topics
+          ignore: brands
