@@ -1,4 +1,4 @@
-from custom_components.scene_setter.core.match import scene_matches
+from custom_components.scene_setter.core.match import scene_level, scene_matches
 
 DIM = {"state": "on", "brightness": 128, "color_mode": "color_temp", "color_temp_kelvin": 2710}
 
@@ -59,3 +59,20 @@ def test_lists_every_entity_that_differs():
     wanted = {"light.a": DIM, "light.b": DIM, "light.c": DIM}
     now = {"light.a": ("off", {}), "light.b": ("on", {"brightness": 128}), "light.c": ("on", {"brightness": 10})}
     assert scene_matches(wanted, now) == (False, ["light.a", "light.c"])
+
+
+def test_level_adds_up_the_lights():
+    bright = {"light.a": {"state": "on", "brightness": 255}, "light.b": {"state": "on", "brightness": 76}}
+    dim = {"light.a": {"state": "on", "brightness": 128}, "light.b": {"state": "on", "brightness": 38}}
+    dark = {"light.a": {"state": "on", "brightness": 51}, "light.b": {"state": "on", "brightness": 15}}
+    assert scene_level(bright) == 331
+    assert scene_level(bright) > scene_level(dim) > scene_level(dark)
+
+
+def test_level_off_counts_nothing_and_on_without_brightness_counts_full():
+    assert scene_level({"light.a": {"state": "off"}, "light.b": {"state": "on"}}) == 255
+
+
+def test_level_ignores_blinds_and_is_none_without_lights():
+    assert scene_level({"light.a": {"state": "on", "brightness": 10}, "cover.b": {"state": "open", "current_position": 100}}) == 10
+    assert scene_level({"cover.b": {"state": "open"}}) is None

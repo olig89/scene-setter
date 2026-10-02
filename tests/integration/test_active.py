@@ -109,3 +109,14 @@ async def test_sensor_follows_the_scene_entity_id_without_apostrophes(hass, hous
     await hass.async_block_till_done()
 
     assert hass.states.get("binary_sensor.olis_office_dim_active").state == "on"
+
+
+async def test_page_gets_each_scene_s_level(hass, house):
+    await save(hass, area_id="kitchen", name="Evening")
+    hass.states.async_set("light.ceiling", "on", {"brightness": 10, "color_mode": "brightness"})
+    await save(hass, area_id="kitchen", name="Night")
+    await hass.async_block_till_done()
+
+    (room,) = [r for r in house.setter.snapshot() if r["area_id"] == "kitchen"]
+    levels = {s["name"]: s["level"] for s in room["scenes"]}
+    assert levels == {"Evening": 200 + 120, "Night": 10 + 120}

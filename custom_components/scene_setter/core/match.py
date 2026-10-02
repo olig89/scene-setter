@@ -95,3 +95,30 @@ def scene_matches(wanted: Mapping[str, Mapping[str, Any]], current: Mapping[str,
         if not ok:
             differ.append(entity_id)
     return compared > 0 and not differ, differ
+
+
+FULL = 255
+
+
+def scene_level(wanted: Mapping[str, Mapping[str, Any]]) -> int | None:
+    """A rough "how bright is this scene" figure, for putting scenes in order.
+
+    The brightness of every light the scene sets, added up: a light that is off
+    counts 0, one that is on with no brightness (it can't dim) counts as full.
+    Blinds don't count. None when the scene sets no lights.
+
+    Within one room it ranks scenes well, since they share the same lights.
+    It knows nothing of how much light each lamp actually gives.
+    """
+    lights = [want for entity_id, want in wanted.items() if domain_of(entity_id) == LIGHT]
+    if not lights:
+        return None
+    total = 0
+    for want in lights:
+        if want.get("state") != "on":
+            continue
+        try:
+            total += int(want.get("brightness", FULL))
+        except (TypeError, ValueError):
+            total += FULL
+    return total

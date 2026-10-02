@@ -7,7 +7,7 @@
 
 // Must match manifest.json (a test checks). Compared with the running integration so a
 // tab still holding old page code after an update says so.
-const PAGE_VERSION = "0.2.0";
+const PAGE_VERSION = "0.2.1";
 
 const ERRORS = {
   invalid_name: null, // the server's own words are right
@@ -88,6 +88,7 @@ class SceneSetterBase extends HTMLElement {
     this._dialog = null; // {kind, room, scene, value, error, busy}
     this._settings = false; // the room's settings are open (page only)
     this._pressed = null; // scene just turned on (for a moment)
+    this._sort = loadPref("sort", "name") === "level" ? "level" : "name"; // how scenes are listed
     this._shown = "";
     this._onFeed = () => this._render();
     this._onKey = (e) => {
@@ -267,6 +268,20 @@ class SceneSetterBase extends HTMLElement {
     return bits.join(" · ") || "Nothing set";
   }
 
+  // Scenes in the order the person chose: A to Z (as they arrive), or
+  // brightest first by the scene's level (all its lights' brightness added up).
+  _ordered(scenes) {
+    if (this._sort !== "level") return scenes;
+    return [...scenes].sort((a, b) => (b.level ?? -1) - (a.level ?? -1) || a.name.localeCompare(b.name));
+  }
+
+  _sortHtml(count) {
+    if (count < 2) return "";
+    const opt = (value, text) =>
+      `<button data-action="sort" data-sort="${value}" aria-pressed="${this._sort === value}">${text}</button>`;
+    return `<span class="sort" role="group" aria-label="Order scenes">${opt("name", "A–Z")}${opt("level", "Brightest")}</span>`;
+  }
+
   // True when the room is as the scene left it (so the list can mark it).
   // The scene's "on now" sensor decides, so the page agrees with anything else
   // that uses it (a wall button's light, an automation). Without one (the
@@ -302,8 +317,8 @@ class SceneSetterBase extends HTMLElement {
 
   _roomHtml(room, { settings = false } = {}) {
     const saved = this._saved(room);
-    const editable = room.scenes.filter((s) => s.editable);
-    const others = room.scenes.filter((s) => !s.editable);
+    const editable = this._ordered(room.scenes.filter((s) => s.editable));
+    const others = this._ordered(room.scenes.filter((s) => !s.editable));
     const canSave = saved.length > 0;
     return `
       <div class="now">
@@ -314,7 +329,7 @@ class SceneSetterBase extends HTMLElement {
         <ha-icon icon="mdi:content-save-plus"></ha-icon>
         <span><b>Save current scene</b><small>${esc(room.name)}: ${esc(this._contents(room))}, as they are now</small></span>
       </button>
-      <div class="label">Saved scenes</div>
+      <div class="label-row"><div class="label">Saved scenes</div>${this._sortHtml(editable.length)}</div>
       ${
         editable.length
           ? `<div class="scenes">${editable.map((s) => this._sceneRow(room, s)).join("")}</div>`
@@ -562,6 +577,11 @@ class SceneSetterBase extends HTMLElement {
         return;
       case "activate":
         return this._activate(data.room, data.scene);
+      case "sort":
+        this._sort = data.sort === "level" ? "level" : "name";
+        savePref("sort", this._sort);
+        this._render();
+        return;
       case "reload":
         location.reload();
         return;
@@ -674,7 +694,7 @@ class SceneSetterPanel extends SceneSetterBase {
   }
 
   _roomCard(room) {
-    const scenes = room.scenes;
+    const scenes = this._ordered(room.scenes);
     const lit = this._saved(room).filter((e) => this._hass.states[e.entity_id]?.state === "on").length;
     return `
       <button class="card room" data-action="open" data-room="${esc(room.area_id)}">
@@ -910,6 +930,13 @@ const STYLES = `
   .detailhead { margin-bottom:12px; }
   .label { font-size:12px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; color: var(--secondary-text-color); margin:16px 0 6px; }
   .now .label { margin-top:0; }
+  .label-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:16px 0 6px; }
+  .label-row .label { margin:0; }
+  .sort { display:inline-flex; border:1px solid var(--divider-color); border-radius:14px; overflow:hidden; }
+  .sort button { border:none; background:none; padding:3px 10px; font-size:12px; cursor:pointer; color: var(--secondary-text-color); font-family:inherit; }
+  .sort button + button { border-left:1px solid var(--divider-color); }
+  .sort button[aria-pressed="true"] { background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); color: var(--primary-text-color); font-weight:500; }
+  .sort button:focus-visible { outline:2px solid var(--primary-color); outline-offset:-2px; }
   .hide-now .now { display:none; }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
   .chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--divider-color); background: var(--secondary-background-color); border-radius:16px; padding:4px 10px 4px 6px; font-size:13px; cursor:pointer; }

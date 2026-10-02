@@ -34,6 +34,7 @@ from homeassistant.util.yaml import dump, load_yaml
 
 from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
 from .core.capture import DOMAINS, domain_of, entry_for
+from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
 SCENE = "scene"
@@ -497,6 +498,7 @@ class SceneSetter:
                                 "editable": s.editable,
                                 "entities": s.entities,
                                 "active_sensor": self.active_sensor(s),
+                                "level": scene_level(s.entities) if s.entities else None,
                             }
                             for s in scenes
                         ],
