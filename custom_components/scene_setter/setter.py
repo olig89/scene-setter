@@ -32,7 +32,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
-from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_ROOMS, IGNORE_LABEL
+from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, IGNORE_LABEL
 from .core.capture import DOMAINS, domain_of, entry_for
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -346,7 +346,7 @@ class SceneSetter:
                 data.append(config)
             else:
                 data[data.index(old)] = config
-            if new:
+            if new and self.entry.options.get(CONF_NO_APOSTROPHES):
                 # Claim the entity id before Home Assistant makes one from the name,
                 # so an apostrophe doesn't become an underscore (olis_, not oli_s_).
                 registry.async_get_or_create(

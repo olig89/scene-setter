@@ -53,5 +53,19 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Scene Setter",
+        "description": "Rooms, and what each one saves, are set on the Scene Setter page.",
+        "data": {
+          "no_apostrophes_in_ids": "Leave apostrophes out of new scene entity IDs"
+        },
+        "data_description": {
+          "no_apostrophes_in_ids": "On: \"Oli's Office Dim\" gets the entity ID scene.olis_office_dim. Off: Home Assistant's usual scene.oli_s_office_dim. The name you see keeps its apostrophe either way, and scenes already saved keep their entity IDs."
+        }
+      }
+    }
   }
 }

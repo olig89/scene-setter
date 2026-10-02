@@ -97,7 +97,17 @@ async def test_save_over_a_given_scene_keeps_its_name(hass, house):
     assert scene["entities"]["cover.blind"] == {"state": "closed", "current_position": 0}
 
 
+async def test_apostrophe_stays_in_the_entity_id_by_default(hass, house):
+    office = house.area("Oli's Office")
+    house.add("light.desk", "on", {"brightness": 90, "color_mode": "brightness"}, office)
+
+    result = await save(hass, area_id=office, name="Dim")
+
+    assert result["scene"] == "scene.oli_s_office_dim"
+
+
 async def test_apostrophe_is_dropped_from_the_entity_id_not_the_name(hass, house):
+    hass.config_entries.async_update_entry(house.entry, options={"no_apostrophes_in_ids": True})
     office = house.area("Oli's Office")
     house.add("light.desk", "on", {"brightness": 90, "color_mode": "brightness"}, office)
 
@@ -114,6 +124,7 @@ async def test_apostrophe_is_dropped_from_the_entity_id_not_the_name(hass, house
 
 
 async def test_entity_id_already_taken_gets_a_number(hass, house):
+    hass.config_entries.async_update_entry(house.entry, options={"no_apostrophes_in_ids": True})
     house.add("scene.kitchen_evening", "unknown")
 
     result = await save(hass, area_id="kitchen", name="Evening")
@@ -122,6 +133,7 @@ async def test_entity_id_already_taken_gets_a_number(hass, house):
 
 
 async def test_failed_save_leaves_no_claimed_entity_id(hass, house, monkeypatch):
+    hass.config_entries.async_update_entry(house.entry, options={"no_apostrophes_in_ids": True})
     monkeypatch.setattr("custom_components.scene_setter.setter.SCENE_WAIT_S", 0.2)
 
     async def no_scene(self, config_id):
@@ -320,3 +332,15 @@ async def test_real_light_attributes_can_be_written(hass, house):
         "xy_color": [0.4, 0.39],
     }
     assert "ColorMode" not in house.scenes_file.read_text()
+
+
+async def test_options_switch_keeps_the_room_settings(hass, house):
+    rooms = {"kitchen": {"exclude": ["cover.blind"], "include": []}}
+    hass.config_entries.async_update_entry(house.entry, options={"rooms": rooms})
+
+    flow = await hass.config_entries.options.async_init(house.entry.entry_id)
+    assert flow["step_id"] == "init"
+    done = await hass.config_entries.options.async_configure(flow["flow_id"], {"no_apostrophes_in_ids": True})
+
+    assert done["type"] == "create_entry"
+    assert house.entry.options == {"rooms": rooms, "no_apostrophes_in_ids": True}

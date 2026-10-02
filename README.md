@@ -4,7 +4,7 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.1.1).** Install through HACS as a custom repository.
+**Status: early development (0.1.2).** Install through HACS as a custom repository.
 
 ## What you get
 
@@ -28,7 +28,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 - **Scenes are Home Assistant's own.** They are written to `scenes.yaml`, the file the scene editor uses, so they survive a restart, open in the scene editor, and can be deleted there too. Nothing is kept anywhere else.
 - **A scene belongs to its room through its area.** "Evening" in the Kitchen is called *Kitchen Evening* in Home Assistant, with the entity `scene.kitchen_evening`, so every room can have its own "Evening". Any scene made in Home Assistant and given the room's area shows up in the room and can be updated, renamed and deleted there, whichever tool made it. Scenes from other integrations (the Hue app's) are listed and can be turned on, but not changed.
 - **Renaming keeps the entity ID.** A wall button or routine pointing at `scene.kitchen_evening` keeps working after the scene is renamed or updated.
-- **No apostrophes in entity IDs.** "Oli's Office Dim" becomes `scene.olis_office_dim`, not `scene.oli_s_office_dim`. The name you see keeps its apostrophe.
+- **Apostrophes in entity IDs, your choice.** Home Assistant makes "Oli's Office Dim" into `scene.oli_s_office_dim`. Turn on *Leave apostrophes out of new scene entity IDs* (Settings → Devices & services → Scene Setter → Configure) to get `scene.olis_office_dim` instead. The name you see keeps its apostrophe either way.
 - **Saving under a name the room already has replaces that scene**, after asking.
 - **Lights** are saved with their brightness and the colour of the mode they are in (colour temperature, or colour), plus an effect if one is running. A light that is off is saved as off, so the scene switches it off.
 - **Blinds and other covers** are saved with their position, and their slat tilt if they have one.

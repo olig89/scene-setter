@@ -4,11 +4,13 @@ from __future__ import annotations
 
 DOMAIN = "scene_setter"
 NAME = "Scene Setter"
-VERSION = "0.1.1"  # must match manifest.json and the page (a test checks)
+VERSION = "0.1.2"  # must match manifest.json and the page (a test checks)
 
 CONF_ROOMS = "rooms"
 CONF_EXCLUDE = "exclude"
 CONF_INCLUDE = "include"
+# Leave apostrophes out of new scene entity ids (olis_office_dim, not oli_s_office_dim).
+CONF_NO_APOSTROPHES = "no_apostrophes_in_ids"
 
 # An entity (or its device) with this label is never saved in a scene.
 IGNORE_LABEL = "scene_setter_ignore"
