@@ -81,6 +81,11 @@ def matches(want: Attributes, state: str, attributes: Attributes) -> bool:
         return False
     if state != "on":
         return True
+    # A light showing a colour when the scene wants a white reports no colour
+    # temperature at all, so the check below would skip it: count it as different.
+    if want.get("color_temp_kelvin") is not None and attributes.get("color_temp_kelvin") is None:
+        if plain(attributes.get("color_mode")) in COLOUR_MODES:
+            return False
     for attr, close, slack in CHECKS:
         wanted, now = want.get(attr), attributes.get(attr)
         # A value only one side has (a light in another colour mode reports no

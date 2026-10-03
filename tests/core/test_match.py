@@ -85,3 +85,11 @@ def test_rgb_colours_and_effects_are_compared():
     want = {"state": "on", "brightness": 200, "effect": "off"}
     assert scene_matches({"light.e": want}, {"light.e": ("on", {"brightness": 200, "effect": "off"})})[0]
     assert not scene_matches({"light.e": want}, {"light.e": ("on", {"brightness": 200, "effect": "candle"})})[0]
+
+
+def test_a_light_showing_a_colour_when_the_scene_wants_a_white_differs():
+    want = {"state": "on", "brightness": 13, "color_mode": "color_temp", "color_temp_kelvin": 2200}
+    red = ("on", {"brightness": 13, "color_mode": "hs", "hs_color": (8.5, 66.5), "color_temp_kelvin": None})
+    assert scene_matches({"light.oven": want}, {"light.oven": red}) == (False, ["light.oven"])
+    white = ("on", {"brightness": 13, "color_mode": "color_temp", "color_temp_kelvin": 2230})
+    assert scene_matches({"light.oven": want}, {"light.oven": white})[0]

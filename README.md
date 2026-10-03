@@ -4,7 +4,7 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.4.0).** Install through HACS as a custom repository.
+**Status: early development (0.4.1).** Install through HACS as a custom repository.
 
 ## What you get
 
@@ -36,7 +36,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 - **Blinds and other covers** are saved with their position, and their slat tilt if they have one.
 - **Anything that can't be reached is left out**, not saved as off. Saving it as off would switch it off every time the scene is used once it comes back. The page says what was left out.
 - **Groups are saved as their members.** A light group in the room is replaced by the lights in it, so a scene never sets both a group and its members. This also brings in group members that have no area of their own.
-- **"Active" allows for rounding.** A light counts as matching within 5 of 255 brightness, 100 K of colour temperature, and a small step of colour; a blind within 3 % of its position and tilt. Anything unreachable is skipped. A colour a light can't report in its current mode isn't held against the scene. The sensor follows its scene: renamed with it, kept in its room, and removed when the scene is deleted.
+- **"Active" allows for rounding.** A light counts as matching within 5 of 255 brightness, 100 K of colour temperature, and a small step of colour; a blind within 3 % of its position and tilt. Anything unreachable is skipped. A light showing a colour when the scene wants a white counts as different. The sensor follows its scene: renamed with it, kept in its room, and removed when the scene is deleted.
 - **To keep something out of every scene**, give the entity or its device the label `scene_setter_ignore`. To keep it out of one room's scenes, untick it under *What this room saves*.
 
 ## Install
