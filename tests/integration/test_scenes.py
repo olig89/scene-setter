@@ -188,6 +188,18 @@ async def test_group_is_replaced_by_its_members(hass, house):
     assert rows["light.lamp_top"].via == "light.lamp"
 
 
+async def test_hue_room_group_with_a_set_of_members_is_replaced_too(hass, house):
+    # The Hue integration gives its room groups' members as a set, not a list.
+    house.add("light.bulb", "on", {"brightness": 80, "color_mode": "brightness"}, "kitchen")
+    house.add("light.hue_room", "on", {"brightness": 80, "entity_id": {"light.bulb"}}, "kitchen")
+
+    await save(hass, area_id="kitchen", name="Evening")
+
+    entities = stored(house)[0]["entities"]
+    assert "light.hue_room" not in entities
+    assert entities["light.bulb"] == {"state": "on", "brightness": 80}
+
+
 async def test_member_in_the_room_and_in_a_group_is_saved_once(hass, house):
     house.add("light.all", "on", {"entity_id": ["light.ceiling", "light.island"]}, "kitchen")
 

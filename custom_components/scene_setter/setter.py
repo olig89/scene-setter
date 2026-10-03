@@ -140,10 +140,11 @@ class SceneSetter:
         """A group's members of its own kind, or None if it isn't a group."""
         state = self.hass.states.get(entity_id)
         members = state.attributes.get(ATTR_ENTITY_ID) if state is not None else None
-        if not isinstance(members, (list, tuple)):
+        # A list for most groups; the Hue integration's room groups give a set.
+        if not isinstance(members, (list, tuple, set, frozenset)):
             return None
         domain = domain_of(entity_id)
-        return [m for m in members if isinstance(m, str) and domain_of(m) == domain and m != entity_id]
+        return sorted(m for m in members if isinstance(m, str) and domain_of(m) == domain and m != entity_id)
 
     def area_entities(self, area_id: str) -> list[str]:
         """The lights and blinds Home Assistant puts in the area."""
