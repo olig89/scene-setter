@@ -9,7 +9,9 @@ Home Assistant custom integration. Saves a room's lights and covers, as they are
   - `setter.py`: `SceneSetter`, all the work. Room contents (`rows`), scene listing (`scenes`), `capture`, `async_save` / `async_rename` / `async_delete`, `set_room`, `snapshot`.
   - `websocket.py`: `scene_setter/subscribe`, `save`, `rename`, `delete`, `save_room` (admin only).
   - `binary_sensor.py`: one "active" sensor per scene (`binary_sensor.<scene>_active`), reconciled on `ANY_SIGNAL`. Removed only when the scene's registry entry is gone or has no area, never while scenes are reloading.
-  - `core/capture.py`, `core/names.py`, `core/match.py`: pure functions, **no Home Assistant imports** (CI greps for this). `match.py` decides whether a room matches a scene, for the sensor; the page reads the sensor (`active_sensor` in the snapshot) and only falls back to its own copy of the rules if the sensor is disabled.
+  - `core/kinds.py`: **the table of device kinds** (`light`, `cover`). Each `Kind` holds that kind's rules: `capture` (state → what a scene stores), `matches` (is it as the scene wants), optional `brightness` (its share of a scene's rough brightness) and optional `level` (how the Create action sets it). Nothing else in Scene Setter names a kind; it asks this table. **To add a kind** (fans, say): a module like `core/light.py` / `core/cover.py`, then one `Kind` line in `KINDS`.
+  - `core/light.py`, `core/cover.py`: each kind's rules. `core/common.py`: shared helpers.
+  - `core/capture.py`, `core/names.py`, `core/match.py`: pure functions (`capture`/`match` are entry points over the table), **no Home Assistant imports** (CI greps for this). `match.py` decides whether a room matches a scene, for the sensor; the page reads the sensor (`active_sensor` in the snapshot) and only falls back to its own copy of the rules if the sensor is disabled.
   - `config_flow.py`: one empty step, single instance.
   - `www/scene-setter.js`: the sidebar page (`scene-setter-panel`) and the dashboard card (`scene-setter-card`) in one file. Plain web components, no build step.
   - `strings.json` and `translations/en.json` must be identical (a test checks).

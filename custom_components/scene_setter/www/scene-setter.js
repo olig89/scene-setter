@@ -7,7 +7,7 @@
 
 // Must match manifest.json (a test checks). Compared with the running integration so a
 // tab still holding old page code after an update says so.
-const PAGE_VERSION = "0.3.5";
+const PAGE_VERSION = "0.4.0";
 
 const ERRORS = {
   invalid_name: null, // the server's own words are right

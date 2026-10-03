@@ -34,7 +34,8 @@ from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
 from .const import ANY_SIGNAL, CONF_DEFAULT_WHITE, DEFAULT_WHITE_K, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
-from .core.capture import DOMAINS, EFFECT_OFF, LIGHT, can_dim, domain_of, entry_for, level_entry, white_for
+from .core.common import domain_of
+from .core.kinds import DOMAINS, entry_for, kind_of, takes_levels
 from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -373,34 +374,23 @@ class SceneSetter:
                 found.append((entity_id, new))
         return found
 
-    def _light_facts(self, entity_id: str) -> dict[str, Any]:
-        """What a light can do: from its state, or its registry entry when it's unreachable."""
+    def _facts(self, entity_id: str) -> dict[str, Any]:
+        """What a device can do: from its state, or its registry entry when it's unreachable."""
         state = self.hass.states.get(entity_id)
         facts = dict(state.attributes) if state is not None else {}
-        if not facts.get("supported_color_modes"):
-            entry = er.async_get(self.hass).async_get(entity_id)
-            facts = {**dict((entry.capabilities or {}) if entry else {}), **facts}
+        # An unreachable device's state says little; its registry entry still
+        # holds what it can do (colour modes, effects, ranges). The state wins
+        # wherever both say something.
+        entry = er.async_get(self.hass).async_get(entity_id)
+        if entry is not None and entry.capabilities:
+            facts = {**dict(entry.capabilities), **facts}
         return facts
 
     def _level(self, entity_id: str, percent: float, kelvin: float) -> dict[str, Any]:
-        """A light fully set: brightness, a white of ``kelvin`` if it has colour,
-        and no effect if it has effects. Nothing it was doing before is left over."""
-        facts = self._light_facts(entity_id)
-        modes = facts.get("supported_color_modes")
-        entry = level_entry(percent, can_dim(modes))
-        if entry["state"] != "on":
-            return entry
-        white = white_for(modes, kelvin, facts.get("min_color_temp_kelvin"), facts.get("max_color_temp_kelvin"))
-        if white is not None:
-            kind, value = white
-            if kind == "color_temp":
-                entry |= {"color_mode": "color_temp", "color_temp_kelvin": value}
-            else:
-                hue, sat = color_temperature_to_hs(value)
-                entry |= {"color_mode": "hs", "hs_color": [round(hue, 1), round(sat, 1)]}
-        if EFFECT_OFF in (facts.get("effect_list") or ()):
-            entry["effect"] = EFFECT_OFF
-        return entry
+        """The device fully set for a level scene, by its kind's own rule."""
+        kind = kind_of(entity_id)
+        assert kind is not None and kind.level is not None  # only devices that take levels get here
+        return kind.level(percent, self._facts(entity_id), kelvin, color_temperature_to_hs)
 
     async def async_create(
         self,
@@ -443,7 +433,7 @@ class SceneSetter:
         plan: list[tuple[ar.AreaEntry, str, str | None, dict[str, dict[str, Any]]]] = []
         kept: list[dict[str, str]] = []
         for area in areas:
-            lights = [r.entity_id for r in self.rows(area.id) if r.status == SAVED and r.domain == LIGHT]
+            lights = [r.entity_id for r in self.rows(area.id) if r.status == SAVED and takes_levels(r.entity_id)]
             if not lights:
                 if area_ids:
                     kept.append({"room": area.name, "reason": "no lights"})
