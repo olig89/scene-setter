@@ -440,10 +440,20 @@ async def test_create_with_a_white_resets_colour(hass, house):
     assert entities["light.ceiling"] == {"state": "on", "brightness": 13}  # no colour to set
 
 
-async def test_create_without_a_white_leaves_colour_alone(hass, house):
+async def test_create_always_sets_a_white_and_stops_effects(hass, house):
+    house.add(
+        "light.bulb",
+        "on",
+        {"brightness": 200, "color_mode": "hs", "hs_color": (0, 100), "effect": "candle",
+         "supported_color_modes": ["color_temp", "hs"], "effect_list": ["off", "candle"]},
+        "kitchen",
+    )
+
     await create(hass, name="Dimmed", brightness=50)
 
-    assert "color_temp_kelvin" not in stored(house)[0]["entities"]["light.island"]
+    assert stored(house)[0]["entities"]["light.bulb"] == {
+        "state": "on", "brightness": 128, "color_mode": "color_temp", "color_temp_kelvin": 2700, "effect": "off",
+    }
 
 
 async def test_unavailable_group_helper_is_still_replaced_by_its_members(hass, house):

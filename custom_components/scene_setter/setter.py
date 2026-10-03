@@ -33,8 +33,8 @@ from homeassistant.util.color import color_temperature_to_hs
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
-from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
-from .core.capture import DOMAINS, LIGHT, can_dim, domain_of, entry_for, level_entry, white_for
+from .const import ANY_SIGNAL, DEFAULT_WHITE_K, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
+from .core.capture import DOMAINS, EFFECT_OFF, LIGHT, can_dim, domain_of, entry_for, level_entry, white_for
 from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -382,21 +382,25 @@ class SceneSetter:
             facts = {**dict((entry.capabilities or {}) if entry else {}), **facts}
         return facts
 
-    def _level(self, entity_id: str, percent: float, kelvin: float | None) -> dict[str, Any]:
-        """A light at a brightness and, if asked, a white of ``kelvin``."""
+    def _level(self, entity_id: str, percent: float, kelvin: float) -> dict[str, Any]:
+        """A light fully set: brightness, a white of ``kelvin`` if it has colour,
+        and no effect if it has effects. Nothing it was doing before is left over."""
         facts = self._light_facts(entity_id)
         modes = facts.get("supported_color_modes")
         entry = level_entry(percent, can_dim(modes))
-        if kelvin is None or entry["state"] != "on":
+        if entry["state"] != "on":
             return entry
         white = white_for(modes, kelvin, facts.get("min_color_temp_kelvin"), facts.get("max_color_temp_kelvin"))
-        if white is None:
-            return entry
-        kind, value = white
-        if kind == "color_temp":
-            return {**entry, "color_mode": "color_temp", "color_temp_kelvin": value}
-        hue, sat = color_temperature_to_hs(value)
-        return {**entry, "color_mode": "hs", "hs_color": [round(hue, 1), round(sat, 1)]}
+        if white is not None:
+            kind, value = white
+            if kind == "color_temp":
+                entry |= {"color_mode": "color_temp", "color_temp_kelvin": value}
+            else:
+                hue, sat = color_temperature_to_hs(value)
+                entry |= {"color_mode": "hs", "hs_color": [round(hue, 1), round(sat, 1)]}
+        if EFFECT_OFF in (facts.get("effect_list") or ()):
+            entry["effect"] = EFFECT_OFF
+        return entry
 
     async def async_create(
         self,
@@ -405,15 +409,15 @@ class SceneSetter:
         area_ids: list[str] | None = None,
         levels: Mapping[str, float] | None = None,
         replace: bool = False,
-        color_temp_kelvin: float | None = None,
+        color_temp_kelvin: float = DEFAULT_WHITE_K,
     ) -> dict[str, Any]:
         """Make a scene from a brightness level, without touching any light.
 
         Every light the room saves is set to ``brightness`` percent (0 = off);
-        ``levels`` gives some lights their own percent. With
-        ``color_temp_kelvin`` every light that has colour is set to that white
-        (the nearest colour for a light without colour temperature), so a colour
-        left over from before doesn't stay. Blinds are left out.
+        ``levels`` gives some lights their own percent. Every light that has
+        colour is set to the white ``color_temp_kelvin`` (the nearest colour for
+        a light without colour temperature) and a running effect is stopped, so
+        nothing left over from before stays. Blinds are left out.
         With no ``area_ids`` every room with lights gets one. A room that already
         has a scene of that name keeps it, unless ``replace``.
         """

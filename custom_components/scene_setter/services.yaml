@@ -60,6 +60,7 @@ create:
         boolean:
     color_temp_kelvin:
       required: false
+      default: 2700
       selector:
         color_temp:
           unit: kelvin

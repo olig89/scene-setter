@@ -76,3 +76,12 @@ def test_level_off_counts_nothing_and_on_without_brightness_counts_full():
 def test_level_ignores_blinds_and_is_none_without_lights():
     assert scene_level({"light.a": {"state": "on", "brightness": 10}, "cover.b": {"state": "open", "current_position": 100}}) == 10
     assert scene_level({"cover.b": {"state": "open"}}) is None
+
+
+def test_rgb_colours_and_effects_are_compared():
+    want = {"state": "on", "brightness": 200, "color_mode": "rgb", "rgb_color": [255, 0, 0]}
+    assert scene_matches({"light.s": want}, {"light.s": ("on", {"brightness": 200, "rgb_color": (250, 4, 0)})})[0]
+    assert not scene_matches({"light.s": want}, {"light.s": ("on", {"brightness": 200, "rgb_color": (0, 0, 255)})})[0]
+    want = {"state": "on", "brightness": 200, "effect": "off"}
+    assert scene_matches({"light.e": want}, {"light.e": ("on", {"brightness": 200, "effect": "off"})})[0]
+    assert not scene_matches({"light.e": want}, {"light.e": ("on", {"brightness": 200, "effect": "candle"})})[0]

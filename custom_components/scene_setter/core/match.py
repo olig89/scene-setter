@@ -19,6 +19,7 @@ BRIGHTNESS_SLACK = 5  # out of 255
 KELVIN_SLACK = 100
 XY_SLACK = 0.01
 HS_SLACK = 4  # degrees of hue, percent of saturation
+RGB_SLACK = 8  # out of 255, per channel
 POSITION_SLACK = 3  # percent
 
 # (entity's state, its attributes), or None when the entity doesn't exist.
@@ -49,6 +50,10 @@ def light_matches(want: Mapping[str, Any], state: str, attributes: Mapping[str, 
         ("color_temp_kelvin", _near, KELVIN_SLACK),
         ("xy_color", _pair_near, XY_SLACK),
         ("hs_color", _pair_near, HS_SLACK),
+        ("rgb_color", _pair_near, RGB_SLACK),
+        ("rgbw_color", _pair_near, RGB_SLACK),
+        ("rgbww_color", _pair_near, RGB_SLACK),
+        ("effect", lambda a, b, _: a == b, 0),
     )
     for attr, close, slack in checks:
         wanted, now = want.get(attr), attributes.get(attr)

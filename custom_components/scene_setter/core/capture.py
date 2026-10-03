@@ -14,6 +14,7 @@ COVER = "cover"
 DOMAINS = (LIGHT, COVER)
 
 NOT_THERE = ("unavailable", "unknown")
+EFFECT_OFF = "off"  # Home Assistant's name for "no effect"
 
 # The attribute that holds the colour, for each colour mode a light can be in.
 COLOUR_ATTR = {
@@ -60,8 +61,13 @@ def light_entry(state: str, attributes: Mapping[str, Any]) -> dict[str, Any] | N
         entry["color_mode"] = mode
         entry[colour_attr] = _plain(colour)
     effect = attributes.get("effect")
-    if effect is not None and effect in (attributes.get("effect_list") or ()):
+    effects = attributes.get("effect_list") or ()
+    if effect is not None and effect in effects:
         entry["effect"] = _plain(effect)
+    elif EFFECT_OFF in effects:
+        # No effect running now: save that, so turning the scene on stops one
+        # that is running by then.
+        entry["effect"] = EFFECT_OFF
     return entry
 
 

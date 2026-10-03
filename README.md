@@ -4,7 +4,7 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.3.3).** Install through HACS as a custom repository.
+**Status: early development (0.3.4).** Install through HACS as a custom repository.
 
 ## What you get
 
@@ -21,7 +21,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 
   It appears in the card picker as *Scene Setter* and needs no resource added by hand. Options: `title`, and `show_now: false` to hide the row of lights and blinds.
 - **An "active" sensor for each scene.** A Home Assistant scene has no on or off: its state is just when it was last turned on. Each scene in a room gets `binary_sensor.<scene>_active` (for example `binary_sensor.kitchen_evening_active`), on while the room is as the scene left it, so a wall button's light, a dashboard or an automation can show or use which scene is on. Its `not_matching` attribute lists the lights and blinds that differ. The page's *On now* mark uses the same sensor.
-- **Four actions**, for automations and scripts: `scene_setter.save` (a room and a name, or a scene to save over), `scene_setter.rename`, `scene_setter.delete`, and `scene_setter.create`, which makes a scene from a brightness level without turning anything on: every light in the room at that percent (0 = off), some lights at their own level if you like, optionally one white for every light with colour (so a colour left from before doesn't stay), blinds left out, for one room or every room at once. A room that already has a scene of that name keeps it unless you choose to replace it.
+- **Four actions**, for automations and scripts: `scene_setter.save` (a room and a name, or a scene to save over), `scene_setter.rename`, `scene_setter.delete`, and `scene_setter.create`, which makes a scene from a brightness level without turning anything on: every light in the room at that percent (0 = off), some lights at their own level if you like, one white for every light with colour (2700 K unless you choose another) and any running effect stopped, so nothing left from before stays, blinds left out, for one room or every room at once. A room that already has a scene of that name keeps it unless you choose to replace it.
 
 ## How it works
 
@@ -31,7 +31,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 - **Renaming keeps the entity ID.** A wall button or routine pointing at `scene.kitchen_evening` keeps working after the scene is renamed or updated.
 - **Apostrophes in entity IDs, your choice.** Home Assistant makes "Oli's Office Dim" into `scene.oli_s_office_dim`. Turn on *Leave apostrophes out of new scene entity IDs* (Settings → Devices & services → Scene Setter → Configure) to get `scene.olis_office_dim` instead. The name you see keeps its apostrophe either way.
 - **Saving under a name the room already has replaces that scene**, after asking.
-- **Lights** are saved with their brightness and the colour of the mode they are in (colour temperature, or colour), plus an effect if one is running. A light that is off is saved as off, so the scene switches it off.
+- **Lights** are saved with their brightness and the colour of the mode they are in (colour temperature, or colour), and their effect: the one running, or "no effect" so that turning the scene on stops one. A light that is off is saved as off, so the scene switches it off.
 - **Blinds and other covers** are saved with their position, and their slat tilt if they have one.
 - **Anything that can't be reached is left out**, not saved as off. Saving it as off would switch it off every time the scene is used once it comes back. The page says what was left out.
 - **Groups are saved as their members.** A light group in the room is replaced by the lights in it, so a scene never sets both a group and its members. This also brings in group members that have no area of their own.

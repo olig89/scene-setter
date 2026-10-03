@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "scene_setter"
 NAME = "Scene Setter"
-VERSION = "0.3.3"  # must match manifest.json and the page (a test checks)
+VERSION = "0.3.4"  # must match manifest.json and the page (a test checks)
 
 CONF_ROOMS = "rooms"
 CONF_EXCLUDE = "exclude"
@@ -19,6 +19,8 @@ SERVICE_SAVE = "save"
 SERVICE_RENAME = "rename"
 SERVICE_DELETE = "delete"
 SERVICE_CREATE = "create"
+# The white scene_setter.create gives every light with colour unless told otherwise.
+DEFAULT_WHITE_K = 2700
 
 # Sent on any change the page shows.
 ANY_SIGNAL = f"{DOMAIN}_any"

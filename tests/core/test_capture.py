@@ -117,3 +117,9 @@ def test_white_for():
     assert white_for(["rgb"], 2700) == ("hs", 2700)
     assert white_for(["brightness"], 2700) is None
     assert white_for(None, 2700) is None
+
+
+def test_no_effect_running_is_saved_so_the_scene_stops_one():
+    assert light_entry("on", {"effect": None, "effect_list": ["off", "candle"]})["effect"] == "off"
+    assert light_entry("on", {"effect": "off", "effect_list": ["off", "candle"]})["effect"] == "off"
+    assert "effect" not in light_entry("off", {"effect_list": ["off", "candle"]})
