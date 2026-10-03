@@ -25,7 +25,6 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     ANY_SIGNAL,
-    DEFAULT_WHITE_K,
     DOMAIN,
     FRONTEND_FILE,
     NAME,
@@ -59,6 +58,7 @@ SAVE_SCHEMA = vol.All(
 RENAME_SCHEMA = vol.Schema({vol.Required("scene"): cv.entity_domain("scene"), vol.Required("name"): cv.string})
 DELETE_SCHEMA = vol.Schema({vol.Required("scene"): cv.entity_domain("scene")})
 PERCENT = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
+KELVIN = vol.All(vol.Coerce(int), vol.Range(min=1000, max=10000))
 CREATE_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -66,9 +66,8 @@ CREATE_SCHEMA = vol.Schema(
         vol.Optional("area_id"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("levels"): vol.Schema({cv.entity_domain("light"): PERCENT}),
         vol.Optional("replace", default=False): cv.boolean,
-        vol.Optional("color_temp_kelvin", default=DEFAULT_WHITE_K): vol.All(
-            vol.Coerce(int), vol.Range(min=1000, max=10000)
-        ),
+        vol.Optional("color_temp_kelvin"): KELVIN,
+        vol.Optional("whites"): vol.Schema({cv.entity_domain("light"): KELVIN}),
     }
 )
 
@@ -144,7 +143,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 call.data.get("area_id"),
                 call.data.get("levels"),
                 call.data["replace"],
-                call.data["color_temp_kelvin"],
+                call.data.get("color_temp_kelvin"),
+                call.data.get("whites"),
             )
         except SceneSetterError as err:
             raise ServiceValidationError(str(err)) from err

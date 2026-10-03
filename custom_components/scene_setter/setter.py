@@ -33,7 +33,7 @@ from homeassistant.util.color import color_temperature_to_hs
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
-from .const import ANY_SIGNAL, DEFAULT_WHITE_K, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
+from .const import ANY_SIGNAL, CONF_DEFAULT_WHITE, DEFAULT_WHITE_K, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
 from .core.capture import DOMAINS, EFFECT_OFF, LIGHT, can_dim, domain_of, entry_for, level_entry, white_for
 from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
@@ -409,14 +409,16 @@ class SceneSetter:
         area_ids: list[str] | None = None,
         levels: Mapping[str, float] | None = None,
         replace: bool = False,
-        color_temp_kelvin: float = DEFAULT_WHITE_K,
+        color_temp_kelvin: float | None = None,
+        whites: Mapping[str, float] | None = None,
     ) -> dict[str, Any]:
         """Make a scene from a brightness level, without touching any light.
 
         Every light the room saves is set to ``brightness`` percent (0 = off);
         ``levels`` gives some lights their own percent. Every light that has
-        colour is set to the white ``color_temp_kelvin`` (the nearest colour for
-        a light without colour temperature) and a running effect is stopped, so
+        colour is set to a white (the nearest colour for a light without colour
+        temperature): its own from ``whites`` if given, else ``color_temp_kelvin``,
+        else the house's default white setting. A running effect is stopped, so
         nothing left over from before stays. Blinds are left out.
         With no ``area_ids`` every room with lights gets one. A room that already
         has a scene of that name keeps it, unless ``replace``.
@@ -436,6 +438,8 @@ class SceneSetter:
         else:
             areas = list(areas_reg.async_list_areas())
         levels = dict(levels or {})
+        whites = dict(whites or {})
+        white = float(color_temp_kelvin or self.entry.options.get(CONF_DEFAULT_WHITE) or DEFAULT_WHITE_K)
         plan: list[tuple[ar.AreaEntry, str, str | None, dict[str, dict[str, Any]]]] = []
         kept: list[dict[str, str]] = []
         for area in areas:
@@ -453,7 +457,9 @@ class SceneSetter:
                     continue
                 config_id, room_name = existing.config_id, existing.name
             entities = {
-                entity_id: self._level(entity_id, float(levels.get(entity_id, brightness)), color_temp_kelvin)
+                entity_id: self._level(
+                    entity_id, float(levels.get(entity_id, brightness)), float(whites.get(entity_id, white))
+                )
                 for entity_id in lights
             }
             plan.append((area, room_name, config_id, entities))

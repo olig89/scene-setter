@@ -60,9 +60,12 @@ create:
         boolean:
     color_temp_kelvin:
       required: false
-      default: 2700
       selector:
         color_temp:
           unit: kelvin
           min: 1000
           max: 10000
+    whites:
+      required: false
+      selector:
+        object:

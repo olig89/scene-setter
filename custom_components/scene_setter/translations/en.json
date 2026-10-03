@@ -79,7 +79,11 @@
         },
         "color_temp_kelvin": {
           "name": "White",
-          "description": "The white for every light with colour, in kelvin: 2700 (warm white) unless you choose another. Lights that only do colours get the nearest colour."
+          "description": "Optional. The white for every light with colour, in kelvin, such as 2200 for a warm nightlight. Without it, the default white from Scene Setter's settings is used. Lights that only do colours get the nearest colour."
+        },
+        "whites": {
+          "name": "Own whites",
+          "description": "Optional. Lights that get their own white: each light with its kelvin, such as light.desk_lamp: 4000."
         }
       }
     }
@@ -90,10 +94,12 @@
         "title": "Scene Setter",
         "description": "Rooms, and what each one saves, are set on the Scene Setter page.",
         "data": {
-          "no_apostrophes_in_ids": "Leave apostrophes out of new scene entity IDs"
+          "no_apostrophes_in_ids": "Leave apostrophes out of new scene entity IDs",
+          "default_white_k": "Default white for scenes made from a brightness level"
         },
         "data_description": {
-          "no_apostrophes_in_ids": "On: \"Oli's Office Dim\" gets the entity ID scene.olis_office_dim. Off: Home Assistant's usual scene.oli_s_office_dim. The name you see keeps its apostrophe either way, and scenes already saved keep their entity IDs."
+          "no_apostrophes_in_ids": "On: \"Oli's Office Dim\" gets the entity ID scene.olis_office_dim. Off: Home Assistant's usual scene.oli_s_office_dim. The name you see keeps its apostrophe either way, and scenes already saved keep their entity IDs.",
+          "default_white_k": "Used by the Create action for every light with colour when no white is given. Lower is warmer: about 2200 is candle-like, 2700 a warm bulb, 4000 neutral, 6500 daylight. Scenes saved from the room as it is keep each light's real colour."
         }
       }
     }

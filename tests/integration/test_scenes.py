@@ -355,7 +355,7 @@ async def test_options_switch_keeps_the_room_settings(hass, house):
     done = await hass.config_entries.options.async_configure(flow["flow_id"], {"no_apostrophes_in_ids": True})
 
     assert done["type"] == "create_entry"
-    assert house.entry.options == {"rooms": rooms, "no_apostrophes_in_ids": True}
+    assert house.entry.options == {"rooms": rooms, "no_apostrophes_in_ids": True, "default_white_k": 2700}
 
 
 async def create(hass: HomeAssistant, **data) -> dict:
@@ -475,3 +475,36 @@ async def test_unavailable_group_helper_is_still_replaced_by_its_members(hass, h
     assert "light.floorlamp" not in entities
     assert entities["light.top"] == {"state": "on", "brightness": 255}
     assert entities["light.bottom"] == {"state": "on", "brightness": 255}
+
+
+COLOUR_BULB = {"brightness": 200, "color_mode": "color_temp", "color_temp_kelvin": 3000, "supported_color_modes": ["color_temp", "hs"]}
+
+
+async def test_create_white_comes_from_the_house_setting(hass, house):
+    house.add("light.bulb", "on", COLOUR_BULB, "kitchen")
+    hass.config_entries.async_update_entry(house.entry, options={"default_white_k": 4000})
+
+    await create(hass, name="Bright", brightness=100)
+
+    assert stored(house)[0]["entities"]["light.bulb"]["color_temp_kelvin"] == 4000
+
+
+async def test_create_white_per_scene_and_per_light(hass, house):
+    house.add("light.bulb", "on", COLOUR_BULB, "kitchen")
+    house.add("light.desk", "on", COLOUR_BULB, "kitchen")
+    hass.config_entries.async_update_entry(house.entry, options={"default_white_k": 4000})
+
+    await create(hass, name="Nightlight", brightness=5, color_temp_kelvin=2200, whites={"light.desk": 3000})
+
+    entities = stored(house)[0]["entities"]
+    assert entities["light.bulb"]["color_temp_kelvin"] == 2200
+    assert entities["light.desk"]["color_temp_kelvin"] == 3000
+
+
+async def test_options_flow_sets_the_default_white(hass, house):
+    flow = await hass.config_entries.options.async_init(house.entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        flow["flow_id"], {"no_apostrophes_in_ids": False, "default_white_k": 3500}
+    )
+
+    assert house.entry.options["default_white_k"] == 3500

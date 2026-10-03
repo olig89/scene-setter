@@ -21,6 +21,7 @@ Home Assistant custom integration. Saves a room's lights and covers, as they are
 - Scene name in HA is `<Area name> <name>`; the room shows it without the area. Rename changes the name only, never the entity ID.
 - Option `no_apostrophes_in_ids` (options flow, off by default; the flow must keep `rooms` when it saves). When on, a new scene's entity ID is claimed in the entity registry before the reload, from the name without apostrophes (`core/names.py::id_text`): `scene.olis_office_dim`, not `oli_s_`. Display names keep apostrophes. A failed save removes the claim.
 - Unreachable entities (`unavailable` / `unknown`) are left out of a captured scene, never saved as off. `create` is different: it knows the wanted level, so it includes them.
+- `create`'s white for a light: its own (`whites`), else the call's `color_temp_kelvin`, else the option `default_white_k`, else 2700. Never a white baked in where a person can't change it.
 - All scene writes go through `SceneSetter._write` (one or many scenes, one reload, roll back everything if any scene fails to appear).
 - A group (state has an `entity_id` list) is replaced by its members.
 - Only the colour attribute of the light's current `color_mode` is saved.
