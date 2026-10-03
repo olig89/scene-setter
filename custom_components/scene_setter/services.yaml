@@ -58,3 +58,10 @@ create:
       default: false
       selector:
         boolean:
+    color_temp_kelvin:
+      required: false
+      selector:
+        color_temp:
+          unit: kelvin
+          min: 1000
+          max: 10000

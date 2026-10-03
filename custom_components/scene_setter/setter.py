@@ -29,11 +29,12 @@ from homeassistant.helpers import (
     floor_registry as fr,
 )
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util.color import color_temperature_to_hs
 from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
 from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
-from .core.capture import DOMAINS, LIGHT, can_dim, domain_of, entry_for, level_entry
+from .core.capture import DOMAINS, LIGHT, can_dim, domain_of, entry_for, level_entry, white_for
 from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -365,13 +366,30 @@ class SceneSetter:
                 found.append((entity_id, new))
         return found
 
-    def _dimmable(self, entity_id: str) -> bool:
+    def _light_facts(self, entity_id: str) -> dict[str, Any]:
+        """What a light can do: from its state, or its registry entry when it's unreachable."""
         state = self.hass.states.get(entity_id)
-        modes = state.attributes.get("supported_color_modes") if state is not None else None
-        if not modes:
+        facts = dict(state.attributes) if state is not None else {}
+        if not facts.get("supported_color_modes"):
             entry = er.async_get(self.hass).async_get(entity_id)
-            modes = (entry.capabilities or {}).get("supported_color_modes") if entry else None
-        return can_dim(modes)
+            facts = {**dict((entry.capabilities or {}) if entry else {}), **facts}
+        return facts
+
+    def _level(self, entity_id: str, percent: float, kelvin: float | None) -> dict[str, Any]:
+        """A light at a brightness and, if asked, a white of ``kelvin``."""
+        facts = self._light_facts(entity_id)
+        modes = facts.get("supported_color_modes")
+        entry = level_entry(percent, can_dim(modes))
+        if kelvin is None or entry["state"] != "on":
+            return entry
+        white = white_for(modes, kelvin, facts.get("min_color_temp_kelvin"), facts.get("max_color_temp_kelvin"))
+        if white is None:
+            return entry
+        kind, value = white
+        if kind == "color_temp":
+            return {**entry, "color_mode": "color_temp", "color_temp_kelvin": value}
+        hue, sat = color_temperature_to_hs(value)
+        return {**entry, "color_mode": "hs", "hs_color": [round(hue, 1), round(sat, 1)]}
 
     async def async_create(
         self,
@@ -380,11 +398,15 @@ class SceneSetter:
         area_ids: list[str] | None = None,
         levels: Mapping[str, float] | None = None,
         replace: bool = False,
+        color_temp_kelvin: float | None = None,
     ) -> dict[str, Any]:
         """Make a scene from a brightness level, without touching any light.
 
         Every light the room saves is set to ``brightness`` percent (0 = off);
-        ``levels`` gives some lights their own percent. Blinds are left out.
+        ``levels`` gives some lights their own percent. With
+        ``color_temp_kelvin`` every light that has colour is set to that white
+        (the nearest colour for a light without colour temperature), so a colour
+        left over from before doesn't stay. Blinds are left out.
         With no ``area_ids`` every room with lights gets one. A room that already
         has a scene of that name keeps it, unless ``replace``.
         """
@@ -420,7 +442,7 @@ class SceneSetter:
                     continue
                 config_id, room_name = existing.config_id, existing.name
             entities = {
-                entity_id: level_entry(float(levels.get(entity_id, brightness)), self._dimmable(entity_id))
+                entity_id: self._level(entity_id, float(levels.get(entity_id, brightness)), color_temp_kelvin)
                 for entity_id in lights
             }
             plan.append((area, room_name, config_id, entities))

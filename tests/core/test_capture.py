@@ -106,3 +106,14 @@ def test_can_dim():
 
     assert can_dim(["brightness"]) and can_dim(["color_temp", "xy"]) and can_dim(None)
     assert not can_dim(["onoff"])
+
+
+def test_white_for():
+    from custom_components.scene_setter.core.capture import white_for
+
+    assert white_for(["color_temp", "xy"], 2700) == ("color_temp", 2700)
+    assert white_for(["color_temp"], 2200, 2702, 5988) == ("color_temp", 2702)  # kept within the light's range
+    assert white_for(["color_temp"], 9000, 2000, 6535) == ("color_temp", 6535)
+    assert white_for(["rgb"], 2700) == ("hs", 2700)
+    assert white_for(["brightness"], 2700) is None
+    assert white_for(None, 2700) is None

@@ -418,3 +418,29 @@ async def test_create_for_every_room_in_one_go(hass, house):
 async def test_create_unknown_room(hass, house):
     with pytest.raises(ServiceValidationError):
         await create(hass, name="Bright", brightness=100, area_id="nowhere")
+
+
+async def test_create_with_a_white_resets_colour(hass, house):
+    house.add(
+        "light.bulb",
+        "on",
+        {"brightness": 200, "color_mode": "hs", "hs_color": (0, 100), "supported_color_modes": ["color_temp", "hs"],
+         "min_color_temp_kelvin": 2000, "max_color_temp_kelvin": 6500},
+        "kitchen",
+    )
+    house.add("light.strip", "off", {"supported_color_modes": ["rgb"]}, "kitchen")
+    house.add("light.warmish", "off", {"supported_color_modes": ["color_temp"], "min_color_temp_kelvin": 2702}, "kitchen")
+
+    await create(hass, name="Nightlight", brightness=5, color_temp_kelvin=2200)
+
+    entities = stored(house)[0]["entities"]
+    assert entities["light.bulb"] == {"state": "on", "brightness": 13, "color_mode": "color_temp", "color_temp_kelvin": 2200}
+    assert entities["light.warmish"]["color_temp_kelvin"] == 2702
+    assert entities["light.strip"]["color_mode"] == "hs" and len(entities["light.strip"]["hs_color"]) == 2
+    assert entities["light.ceiling"] == {"state": "on", "brightness": 13}  # no colour to set
+
+
+async def test_create_without_a_white_leaves_colour_alone(hass, house):
+    await create(hass, name="Dimmed", brightness=50)
+
+    assert "color_temp_kelvin" not in stored(house)[0]["entities"]["light.island"]

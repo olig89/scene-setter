@@ -55,7 +55,7 @@
     },
     "create": {
       "name": "Create a scene from a brightness level",
-      "description": "Makes a scene that sets every light in the room to one brightness, without turning anything on now. Blinds are left out. A room that already has a scene of that name keeps it unless Replace is on.",
+      "description": "Makes a scene that sets every light in the room to one brightness, and optionally one white, without turning anything on now. Blinds are left out. A room that already has a scene of that name keeps it unless Replace is on.",
       "fields": {
         "name": {
           "name": "Name",
@@ -76,6 +76,10 @@
         "replace": {
           "name": "Replace",
           "description": "Save over a scene of the same name in the room."
+        },
+        "color_temp_kelvin": {
+          "name": "White",
+          "description": "Optional. A colour temperature in kelvin, such as 2700 for warm white. Every light with colour is set to it (the nearest colour for lights that only do colours), so a colour left from before doesn't stay. Without it, lights keep the colour they have."
         }
       }
     }

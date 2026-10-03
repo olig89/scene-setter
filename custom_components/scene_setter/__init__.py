@@ -65,6 +65,7 @@ CREATE_SCHEMA = vol.Schema(
         vol.Optional("area_id"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("levels"): vol.Schema({cv.entity_domain("light"): PERCENT}),
         vol.Optional("replace", default=False): cv.boolean,
+        vol.Optional("color_temp_kelvin"): vol.All(vol.Coerce(int), vol.Range(min=1000, max=10000)),
     }
 )
 
@@ -140,6 +141,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 call.data.get("area_id"),
                 call.data.get("levels"),
                 call.data["replace"],
+                call.data.get("color_temp_kelvin"),
             )
         except SceneSetterError as err:
             raise ServiceValidationError(str(err)) from err

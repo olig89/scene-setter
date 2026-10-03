@@ -118,3 +118,23 @@ def can_dim(color_modes: object) -> bool:
         return True
     modes = {str(getattr(m, "value", m)) for m in color_modes}  # type: ignore[union-attr]
     return bool(modes - {"onoff", "unknown"})
+
+
+COLOUR_MODES = ("hs", "xy", "rgb", "rgbw", "rgbww")
+
+
+def white_for(color_modes: object, kelvin: float, lowest: float | None = None, highest: float | None = None) -> tuple[str, float] | None:
+    """How a light takes a white of ``kelvin``: ("color_temp", kelvin kept within
+    the light's range), ("hs", kelvin) for a colour-only light (shown as the
+    nearest colour), or None for a light with no colour at all.
+    """
+    modes = {str(getattr(m, "value", m)) for m in (color_modes or ())}  # type: ignore[union-attr]
+    if "color_temp" in modes:
+        if lowest:
+            kelvin = max(kelvin, lowest)
+        if highest:
+            kelvin = min(kelvin, highest)
+        return "color_temp", round(kelvin)
+    if modes & set(COLOUR_MODES):
+        return "hs", kelvin
+    return None
