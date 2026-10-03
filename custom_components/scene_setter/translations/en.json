@@ -71,7 +71,7 @@
         },
         "levels": {
           "name": "Own levels",
-          "description": "Optional. Lights that get their own brightness, such as {light.desk_lamp: 30}."
+          "description": "Optional. Lights that get their own brightness: each light with its percent, such as light.desk_lamp: 30."
         },
         "replace": {
           "name": "Replace",
