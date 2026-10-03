@@ -141,6 +141,13 @@ class SceneSetter:
         """A group's members of its own kind, or None if it isn't a group."""
         state = self.hass.states.get(entity_id)
         members = state.attributes.get(ATTR_ENTITY_ID) if state is not None else None
+        if members is None:
+            # A group helper that is unavailable (its lights are offline, or still
+            # coming back after a restart) shows no members; its settings still list them.
+            entity = er.async_get(self.hass).async_get(entity_id)
+            if entity is not None and entity.platform == "group" and entity.config_entry_id:
+                group = self.hass.config_entries.async_get_entry(entity.config_entry_id)
+                members = (group.options.get("entities") if group else None) or None
         # A list for most groups; the Hue integration's room groups give a set.
         if not isinstance(members, (list, tuple, set, frozenset)):
             return None

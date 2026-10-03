@@ -4,7 +4,7 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.3.2).** Install through HACS as a custom repository.
+**Status: early development (0.3.3).** Install through HACS as a custom repository.
 
 ## What you get
 

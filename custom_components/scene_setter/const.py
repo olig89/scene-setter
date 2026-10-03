@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "scene_setter"
 NAME = "Scene Setter"
-VERSION = "0.3.2"  # must match manifest.json and the page (a test checks)
+VERSION = "0.3.3"  # must match manifest.json and the page (a test checks)
 
 CONF_ROOMS = "rooms"
 CONF_EXCLUDE = "exclude"

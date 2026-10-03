@@ -444,3 +444,24 @@ async def test_create_without_a_white_leaves_colour_alone(hass, house):
     await create(hass, name="Dimmed", brightness=50)
 
     assert "color_temp_kelvin" not in stored(house)[0]["entities"]["light.island"]
+
+
+async def test_unavailable_group_helper_is_still_replaced_by_its_members(hass, house):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    group = MockConfigEntry(domain="group", options={"group_type": "light", "entities": ["light.top", "light.bottom"]})
+    group.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "light", "group", group.entry_id, suggested_object_id="floorlamp", config_entry=group
+    )
+    er.async_get(hass).async_update_entity("light.floorlamp", area_id="kitchen")
+    hass.states.async_set("light.floorlamp", "unavailable", {"friendly_name": "Floorlamp"})
+    house.add("light.top", "unavailable", {})
+    house.add("light.bottom", "unavailable", {})
+
+    await create(hass, name="Bright", brightness=100)
+
+    entities = stored(house)[0]["entities"]
+    assert "light.floorlamp" not in entities
+    assert entities["light.top"] == {"state": "on", "brightness": 255}
+    assert entities["light.bottom"] == {"state": "on", "brightness": 255}
