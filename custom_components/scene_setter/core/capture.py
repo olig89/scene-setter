@@ -97,3 +97,24 @@ def entry_for(entity_id: str, state: str, attributes: Mapping[str, Any]) -> dict
     if domain == COVER:
         return cover_entry(state, attributes)
     return None
+
+
+def level_entry(percent: float, dimmable: bool) -> dict[str, Any]:
+    """A light set to a brightness level, as a scene stores it.
+
+    0 % (or less) is off. A light that can't dim is on from 50 % up, else off,
+    so a dim scene never puts it on at full.
+    """
+    if percent <= 0:
+        return {"state": "off"}
+    if not dimmable:
+        return {"state": "on"} if percent >= 50 else {"state": "off"}
+    return {"state": "on", "brightness": max(1, min(255, round(percent * 255 / 100)))}
+
+
+def can_dim(color_modes: object) -> bool:
+    """Whether a light with these supported colour modes can dim. Unknown counts as yes."""
+    if not color_modes:
+        return True
+    modes = {str(getattr(m, "value", m)) for m in color_modes}  # type: ignore[union-attr]
+    return bool(modes - {"onoff", "unknown"})

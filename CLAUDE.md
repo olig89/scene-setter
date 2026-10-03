@@ -5,7 +5,7 @@ Home Assistant custom integration. Saves a room's lights and covers, as they are
 ## Layout
 
 - `custom_components/scene_setter/`
-  - `__init__.py`: setup, the three actions (`save`, `rename`, `delete`), panel and card registration.
+  - `__init__.py`: setup, the four actions (`save`, `rename`, `delete`, `create`), panel and card registration.
   - `setter.py`: `SceneSetter`, all the work. Room contents (`rows`), scene listing (`scenes`), `capture`, `async_save` / `async_rename` / `async_delete`, `set_room`, `snapshot`.
   - `websocket.py`: `scene_setter/subscribe`, `save`, `rename`, `delete`, `save_room` (admin only).
   - `binary_sensor.py`: one "active" sensor per scene (`binary_sensor.<scene>_active`), reconciled on `ANY_SIGNAL`. Removed only when the scene's registry entry is gone or has no area, never while scenes are reloading.
@@ -20,7 +20,8 @@ Home Assistant custom integration. Saves a room's lights and covers, as they are
 - Scenes live only in Home Assistant's `scenes.yaml`. There is no store of our own. A scene belongs to a room through the scene entity's area.
 - Scene name in HA is `<Area name> <name>`; the room shows it without the area. Rename changes the name only, never the entity ID.
 - Option `no_apostrophes_in_ids` (options flow, off by default; the flow must keep `rooms` when it saves). When on, a new scene's entity ID is claimed in the entity registry before the reload, from the name without apostrophes (`core/names.py::id_text`): `scene.olis_office_dim`, not `oli_s_`. Display names keep apostrophes. A failed save removes the claim.
-- Unreachable entities (`unavailable` / `unknown`) are left out of a scene, never saved as off.
+- Unreachable entities (`unavailable` / `unknown`) are left out of a captured scene, never saved as off. `create` is different: it knows the wanted level, so it includes them.
+- All scene writes go through `SceneSetter._write` (one or many scenes, one reload, roll back everything if any scene fails to appear).
 - A group (state has an `entity_id` list) is replaced by its members.
 - Only the colour attribute of the light's current `color_mode` is saved.
 - Values written to YAML must be plain: HA hands over `ColorMode` enums and tuples (`core/capture.py::_plain`).

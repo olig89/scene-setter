@@ -33,7 +33,7 @@ from homeassistant.util.file import write_utf8_file_atomic
 from homeassistant.util.yaml import dump, load_yaml
 
 from .const import ANY_SIGNAL, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
-from .core.capture import DOMAINS, domain_of, entry_for
+from .core.capture import DOMAINS, LIGHT, can_dim, domain_of, entry_for, level_entry
 from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -304,6 +304,137 @@ class SceneSetter:
                 entities[row.entity_id] = entry
         return entities, skipped
 
+    async def _write(
+        self, plan: list[tuple[ar.AreaEntry, str, str | None, dict[str, dict[str, Any]]]]
+    ) -> list[tuple[str, bool]]:
+        """Write scenes to scenes.yaml with one reload: each item is (room, name in
+        the room, config id to save over or None for a new scene, what it sets).
+
+        Returns (entity id, made new) per item. If any scene fails to appear the
+        whole write is rolled back.
+        """
+        registry = er.async_get(self.hass)
+        async with self._lock:
+            data = await self._load()
+            before = list(data)
+            ids: list[tuple[str, bool]] = []
+            claimed: list[str] = []
+            for area, wanted, config_id, entities in plan:
+                new = config_id is None
+                config_id = config_id or uuid.uuid4().hex
+                old = next((item for item in data if item.get(CONF_ID) == config_id), None)
+                if old is None and not new:
+                    raise SceneSetterError(
+                        "not_in_file", "That scene isn't in scenes.yaml, so it can only be changed where it was made."
+                    )
+                config: dict[str, Any] = {CONF_ID: config_id, CONF_NAME: full_name(area.name, wanted)}
+                if old is not None and old.get(CONF_ICON):
+                    config[CONF_ICON] = old[CONF_ICON]
+                config[CONF_ENTITIES] = entities
+                # Tells the scene editor these were added as single entities, not whole devices.
+                config["metadata"] = {entity_id: {"entity_only": True} for entity_id in entities}
+                if old is None:
+                    data.append(config)
+                else:
+                    data[data.index(old)] = config
+                if new and self.entry.options.get(CONF_NO_APOSTROPHES):
+                    # Claim the entity id before Home Assistant makes one from the name,
+                    # so an apostrophe doesn't become an underscore (olis_, not oli_s_).
+                    registry.async_get_or_create(
+                        SCENE, HA_SCENES, config_id, suggested_object_id=id_text(config[CONF_NAME])
+                    )
+                    claimed.append(config_id)
+                ids.append((config_id, new))
+            await self._store(data)
+            found: list[tuple[str, bool]] = []
+            for (area, *_), (config_id, new) in zip(plan, ids):
+                entity_id = await self._entity_of(config_id)
+                if entity_id is None:
+                    await self._store(before)
+                    for claim in claimed:
+                        if gone := registry.async_get_entity_id(SCENE, HA_SCENES, claim):
+                            registry.async_remove(gone)
+                    raise SceneSetterError(
+                        "not_loaded",
+                        "Home Assistant didn't load the scene. Check that configuration.yaml has the line "
+                        "'scene: !include scenes.yaml' (it does unless it was removed).",
+                    )
+                if registry.async_get(entity_id).area_id != area.id:
+                    registry.async_update_entity(entity_id, area_id=area.id)
+                found.append((entity_id, new))
+        return found
+
+    def _dimmable(self, entity_id: str) -> bool:
+        state = self.hass.states.get(entity_id)
+        modes = state.attributes.get("supported_color_modes") if state is not None else None
+        if not modes:
+            entry = er.async_get(self.hass).async_get(entity_id)
+            modes = (entry.capabilities or {}).get("supported_color_modes") if entry else None
+        return can_dim(modes)
+
+    async def async_create(
+        self,
+        name: str,
+        brightness: float,
+        area_ids: list[str] | None = None,
+        levels: Mapping[str, float] | None = None,
+        replace: bool = False,
+    ) -> dict[str, Any]:
+        """Make a scene from a brightness level, without touching any light.
+
+        Every light the room saves is set to ``brightness`` percent (0 = off);
+        ``levels`` gives some lights their own percent. Blinds are left out.
+        With no ``area_ids`` every room with lights gets one. A room that already
+        has a scene of that name keeps it, unless ``replace``.
+        """
+        try:
+            wanted = clean_name(name)
+        except SceneNameError as err:
+            raise SceneSetterError("invalid_name", str(err)) from err
+        areas_reg = ar.async_get(self.hass)
+        if area_ids:
+            areas = []
+            for area_id in area_ids:
+                area = areas_reg.async_get_area(area_id)
+                if area is None:
+                    raise SceneSetterError("unknown_room", f"There is no room called {area_id}.")
+                areas.append(area)
+        else:
+            areas = list(areas_reg.async_list_areas())
+        levels = dict(levels or {})
+        plan: list[tuple[ar.AreaEntry, str, str | None, dict[str, dict[str, Any]]]] = []
+        kept: list[dict[str, str]] = []
+        for area in areas:
+            lights = [r.entity_id for r in self.rows(area.id) if r.status == SAVED and r.domain == LIGHT]
+            if not lights:
+                if area_ids:
+                    kept.append({"room": area.name, "reason": "no lights"})
+                continue
+            config_id: str | None = None
+            room_name = wanted
+            existing = next((s for s in self.scenes(area.id) if same_name(s.name, wanted)), None)
+            if existing is not None:
+                if not replace or not existing.editable:
+                    kept.append({"room": area.name, "scene": existing.entity_id, "reason": "already has one"})
+                    continue
+                config_id, room_name = existing.config_id, existing.name
+            entities = {
+                entity_id: level_entry(float(levels.get(entity_id, brightness)), self._dimmable(entity_id))
+                for entity_id in lights
+            }
+            plan.append((area, room_name, config_id, entities))
+        written = await self._write(plan) if plan else []
+        if written:
+            self._changed()
+        return {
+            "name": wanted,
+            "scenes": [
+                {"room": area.name, "scene": entity_id, "created": new, "lights": len(entities)}
+                for (area, _, _, entities), (entity_id, new) in zip(plan, written)
+            ],
+            "kept": kept,
+        }
+
     async def async_save(self, area_id: str | None, name: str | None = None, scene: str | None = None) -> dict[str, Any]:
         """Save the room as it is now, as a new scene or over an existing one.
 
@@ -352,45 +483,7 @@ class SceneSetter:
                 else "None of this room's lights or blinds can be reached right now, so there is nothing to save.",
             )
 
-        async with self._lock:
-            data = await self._load()
-            new = config_id is None
-            config_id = config_id or uuid.uuid4().hex
-            old = next((item for item in data if item.get(CONF_ID) == config_id), None)
-            if old is None and not new:
-                raise SceneSetterError(
-                    "not_in_file", "That scene isn't in scenes.yaml, so it can only be changed where it was made."
-                )
-            config: dict[str, Any] = {CONF_ID: config_id, CONF_NAME: full_name(area.name, wanted)}
-            if old is not None and old.get(CONF_ICON):
-                config[CONF_ICON] = old[CONF_ICON]
-            config[CONF_ENTITIES] = entities
-            # Tells the scene editor these were added as single entities, not whole devices.
-            config["metadata"] = {entity_id: {"entity_only": True} for entity_id in entities}
-            before = list(data)
-            if old is None:
-                data.append(config)
-            else:
-                data[data.index(old)] = config
-            if new and self.entry.options.get(CONF_NO_APOSTROPHES):
-                # Claim the entity id before Home Assistant makes one from the name,
-                # so an apostrophe doesn't become an underscore (olis_, not oli_s_).
-                registry.async_get_or_create(
-                    SCENE, HA_SCENES, config_id, suggested_object_id=id_text(config[CONF_NAME])
-                )
-            await self._store(data)
-            entity_id = await self._entity_of(config_id)
-            if entity_id is None:
-                await self._store(before)
-                if new and (claimed := registry.async_get_entity_id(SCENE, HA_SCENES, config_id)):
-                    registry.async_remove(claimed)
-                raise SceneSetterError(
-                    "not_loaded",
-                    "Home Assistant didn't load the scene. Check that configuration.yaml has the line "
-                    "'scene: !include scenes.yaml' (it does unless it was removed).",
-                )
-            if registry.async_get(entity_id).area_id != area.id:
-                registry.async_update_entity(entity_id, area_id=area.id)
+        ((entity_id, new),) = await self._write([(area, wanted, config_id, entities)])
         self._changed()
         return {
             "scene": entity_id,

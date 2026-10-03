@@ -88,3 +88,21 @@ def test_colour_mode_enum_is_saved_as_plain_text():
     assert entry["color_mode"] == "color_temp"
     assert type(entry["color_mode"]) is str
     assert entry["color_temp_kelvin"] == 3000
+
+
+def test_level_entry():
+    from custom_components.scene_setter.core.capture import level_entry
+
+    assert level_entry(100, True) == {"state": "on", "brightness": 255}
+    assert level_entry(50, True) == {"state": "on", "brightness": 128}
+    assert level_entry(0.2, True) == {"state": "on", "brightness": 1}
+    assert level_entry(0, True) == {"state": "off"}
+    assert level_entry(60, False) == {"state": "on"}
+    assert level_entry(20, False) == {"state": "off"}
+
+
+def test_can_dim():
+    from custom_components.scene_setter.core.capture import can_dim
+
+    assert can_dim(["brightness"]) and can_dim(["color_temp", "xy"]) and can_dim(None)
+    assert not can_dim(["onoff"])

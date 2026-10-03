@@ -30,6 +30,7 @@ from .const import (
     NAME,
     PANEL_COMPONENT,
     PANEL_URL,
+    SERVICE_CREATE,
     SERVICE_DELETE,
     SERVICE_RENAME,
     SERVICE_SAVE,
@@ -56,6 +57,16 @@ SAVE_SCHEMA = vol.All(
 )
 RENAME_SCHEMA = vol.Schema({vol.Required("scene"): cv.entity_domain("scene"), vol.Required("name"): cv.string})
 DELETE_SCHEMA = vol.Schema({vol.Required("scene"): cv.entity_domain("scene")})
+PERCENT = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
+CREATE_SCHEMA = vol.Schema(
+    {
+        vol.Required("name"): cv.string,
+        vol.Required("brightness"): PERCENT,
+        vol.Optional("area_id"): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("levels"): vol.Schema({cv.entity_domain("light"): PERCENT}),
+        vol.Optional("replace", default=False): cv.boolean,
+    }
+)
 
 
 def setter_of(hass: HomeAssistant) -> SceneSetter | None:
@@ -121,10 +132,23 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         except SceneSetterError as err:
             raise ServiceValidationError(str(err)) from err
 
+    async def create(call: ServiceCall) -> ServiceResponse:
+        try:
+            return await _setter().async_create(
+                call.data["name"],
+                call.data["brightness"],
+                call.data.get("area_id"),
+                call.data.get("levels"),
+                call.data["replace"],
+            )
+        except SceneSetterError as err:
+            raise ServiceValidationError(str(err)) from err
+
     optional = SupportsResponse.OPTIONAL
     hass.services.async_register(DOMAIN, SERVICE_SAVE, save, schema=SAVE_SCHEMA, supports_response=optional)
     hass.services.async_register(DOMAIN, SERVICE_RENAME, rename, schema=RENAME_SCHEMA, supports_response=optional)
     hass.services.async_register(DOMAIN, SERVICE_DELETE, delete, schema=DELETE_SCHEMA, supports_response=optional)
+    hass.services.async_register(DOMAIN, SERVICE_CREATE, create, schema=CREATE_SCHEMA, supports_response=optional)
     return True
 
 

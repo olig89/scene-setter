@@ -31,3 +31,30 @@ delete:
       selector:
         entity:
           domain: scene
+create:
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    brightness:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    area_id:
+      required: false
+      selector:
+        area:
+          multiple: true
+    levels:
+      required: false
+      selector:
+        object:
+    replace:
+      required: false
+      default: false
+      selector:
+        boolean:

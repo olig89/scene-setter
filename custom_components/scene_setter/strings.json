@@ -52,6 +52,32 @@
           "description": "The scene to delete."
         }
       }
+    },
+    "create": {
+      "name": "Create a scene from a brightness level",
+      "description": "Makes a scene that sets every light in the room to one brightness, without turning anything on now. Blinds are left out. A room that already has a scene of that name keeps it unless Replace is on.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "What to call the scene in its room, such as Dimmed."
+        },
+        "brightness": {
+          "name": "Brightness",
+          "description": "The brightness for every light, in percent. 0 is off. A light that can't dim is on from 50 % up."
+        },
+        "area_id": {
+          "name": "Rooms",
+          "description": "Optional. The rooms to make it for. Leave empty for every room with lights."
+        },
+        "levels": {
+          "name": "Own levels",
+          "description": "Optional. Lights that get their own brightness, such as {light.desk_lamp: 30}."
+        },
+        "replace": {
+          "name": "Replace",
+          "description": "Save over a scene of the same name in the room."
+        }
+      }
     }
   },
   "options": {

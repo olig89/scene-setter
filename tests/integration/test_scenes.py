@@ -344,3 +344,65 @@ async def test_options_switch_keeps_the_room_settings(hass, house):
 
     assert done["type"] == "create_entry"
     assert house.entry.options == {"rooms": rooms, "no_apostrophes_in_ids": True}
+
+
+async def create(hass: HomeAssistant, **data) -> dict:
+    return await hass.services.async_call("scene_setter", "create", data, blocking=True, return_response=True)
+
+
+async def test_create_sets_every_light_and_leaves_blinds_out(hass, house):
+    result = await create(hass, name="Dimmed", brightness=50)
+
+    assert [s["scene"] for s in result["scenes"]] == ["scene.kitchen_dimmed"]
+    (scene,) = stored(house)
+    assert scene["name"] == "Kitchen Dimmed"
+    assert scene["entities"] == {
+        "light.ceiling": {"state": "on", "brightness": 128},
+        "light.island": {"state": "on", "brightness": 128},
+        "light.counter": {"state": "on", "brightness": 128},
+    }
+    assert er.async_get(hass).async_get("scene.kitchen_dimmed").area_id == "kitchen"
+    assert house.calls == []  # nothing was turned on
+
+
+async def test_create_own_levels_and_lights_that_cannot_dim(hass, house):
+    house.add("light.relay", "off", {"supported_color_modes": ["onoff"]}, "kitchen")
+
+    await create(hass, name="Dark", brightness=20, levels={"light.island": 6})
+
+    entities = stored(house)[0]["entities"]
+    assert entities["light.ceiling"] == {"state": "on", "brightness": 51}
+    assert entities["light.island"] == {"state": "on", "brightness": 15}
+    assert entities["light.relay"] == {"state": "off"}
+
+
+async def test_create_keeps_an_existing_scene_unless_replace(hass, house):
+    first = await save(hass, area_id="kitchen", name="Bright")
+
+    kept = await create(hass, name="bright", brightness=100)
+    assert kept["scenes"] == [] and kept["kept"][0]["reason"] == "already has one"
+    assert stored(house)[0]["entities"]["light.ceiling"] == {"state": "on", "brightness": 200}
+
+    replaced = await create(hass, name="bright", brightness=100, replace=True)
+    assert replaced["scenes"][0]["scene"] == first["scene"]
+    assert replaced["scenes"][0]["created"] is False
+    (scene,) = stored(house)
+    assert scene["name"] == "Kitchen Bright"
+    assert scene["entities"]["light.ceiling"] == {"state": "on", "brightness": 255}
+
+
+async def test_create_for_every_room_in_one_go(hass, house):
+    lounge = house.area("Lounge")
+    house.add("light.lamp", "unavailable", {}, lounge)
+    house.area("Empty")
+
+    result = await create(hass, name="Nightlight", brightness=5)
+
+    assert sorted(s["scene"] for s in result["scenes"]) == ["scene.kitchen_nightlight", "scene.lounge_nightlight"]
+    lamp = next(s for s in stored(house) if s["name"] == "Lounge Nightlight")
+    assert lamp["entities"] == {"light.lamp": {"state": "on", "brightness": 13}}  # unreachable lights are included
+
+
+async def test_create_unknown_room(hass, house):
+    with pytest.raises(ServiceValidationError):
+        await create(hass, name="Bright", brightness=100, area_id="nowhere")
