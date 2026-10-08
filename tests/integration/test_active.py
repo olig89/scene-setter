@@ -120,3 +120,58 @@ async def test_page_gets_each_scene_s_level(hass, house):
     (room,) = [r for r in house.setter.snapshot() if r["area_id"] == "kitchen"]
     levels = {s["name"]: s["level"] for s in room["scenes"]}
     assert levels == {"Evening": 200 + 120, "Night": 10 + 120}
+
+
+async def _edit_scenes_by_hand(hass: HomeAssistant, house, change) -> None:
+    """Change scenes.yaml the way the scene editor does, then reload scenes."""
+    from homeassistant.util.yaml import dump, load_yaml
+
+    data = await hass.async_add_executor_job(load_yaml, str(house.scenes_file))
+    change(data)
+    await hass.async_add_executor_job(house.scenes_file.write_text, dump(data))
+    await hass.services.async_call("scene", "reload", blocking=True)
+    await hass.async_block_till_done()
+
+
+async def test_sensor_follows_members_edited_outside_scene_setter(hass, house):
+    await save(hass, area_id="kitchen", name="Evening")
+    await hass.async_block_till_done()
+    assert "light.counter" in hass.states.get("scene.kitchen_evening").attributes["entity_id"]
+
+    def drop_counter(data):
+        del data[0]["entities"]["light.counter"]
+
+    await _edit_scenes_by_hand(hass, house, drop_counter)
+    assert "light.counter" not in hass.states.get("scene.kitchen_evening").attributes["entity_id"]
+
+    # The counter light is no longer part of the scene, so it can't stop it matching.
+    hass.states.async_set("light.counter", "on", {"brightness": 255, "color_mode": "brightness"})
+    await hass.async_block_till_done()
+    assert hass.states.get(SENSOR).state == "on"
+
+
+async def test_sensor_follows_a_member_light_renamed_then_edited_into_the_scene(hass, house):
+    await save(hass, area_id="kitchen", name="Evening")
+    await hass.async_block_till_done()
+
+    # Rename light.island to light.iris, as the entity settings dialog does.
+    er.async_get(hass).async_update_entity("light.island", new_entity_id="light.iris")
+    hass.states.async_remove("light.island")
+    hass.states.async_set(
+        "light.iris", "on", {"brightness": 120, "color_mode": "color_temp", "color_temp_kelvin": 2700}
+    )
+    await hass.async_block_till_done()
+
+    def rename_member(data):
+        entities = data[0]["entities"]
+        entities["light.iris"] = entities.pop("light.island")
+
+    await _edit_scenes_by_hand(hass, house, rename_member)
+    assert "light.iris" in hass.states.get("scene.kitchen_evening").attributes["entity_id"]
+    assert hass.states.get(SENSOR).state == "on"
+
+    hass.states.async_set("light.iris", "on", {"brightness": 10, "color_mode": "color_temp", "color_temp_kelvin": 2700})
+    await hass.async_block_till_done()
+    state = hass.states.get(SENSOR)
+    assert state.state == "off"
+    assert state.attributes["not_matching"] == ["light.iris"]

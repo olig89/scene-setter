@@ -11,7 +11,7 @@ from pathlib import Path
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_STATE_CHANGED, Platform
+from homeassistant.const import ATTR_ENTITY_ID, EVENT_STATE_CHANGED, Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import (
@@ -170,8 +170,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) 
 
     @callback
     def _scene_changed(event: Event) -> None:
-        # A scene appearing or going (the scene editor, a reload) changes the lists.
-        if event.data.get("old_state") is None or event.data.get("new_state") is None:
+        # A scene appearing or going (the scene editor, a reload) changes the lists,
+        # and so does a change to what it sets. A reload doesn't remove a scene's
+        # state: it goes unavailable and comes back, with its new lights in its
+        # entity_id attribute. Turning a scene on only changes the time, not that.
+        old, new = event.data.get("old_state"), event.data.get("new_state")
+        if old is None or new is None or old.attributes.get(ATTR_ENTITY_ID) != new.attributes.get(ATTR_ENTITY_ID):
             _changed()
 
     for event_type in (
