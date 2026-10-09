@@ -2,12 +2,12 @@
 // Plain web components: no build step, no dependencies.
 //
 // The rooms come from one websocket subscription (scene_setter/subscribe), shared by
-// every card on the page. Changes go through scene_setter/save, rename, delete and
-// (administrators only) save_room. Lights and blinds are read live from Home Assistant.
+// every card on the page. Changes go through scene_setter/save, rename, delete,
+// try_suggestion, save_suggestion, dismiss_suggestion and (administrators only) save_room. Lights and blinds are read live from Home Assistant.
 
 // Must match manifest.json (a test checks). Compared with the running integration so a
 // tab still holding old page code after an update says so.
-const PAGE_VERSION = "0.4.2";
+const PAGE_VERSION = "0.5.0";
 
 const ERRORS = {
   invalid_name: null, // the server's own words are right
@@ -18,6 +18,7 @@ const ERRORS = {
   not_loaded: null,
   unknown_room: "That room no longer exists. Reload the page.",
   unknown_scene: "That scene no longer exists.",
+  unknown_suggestion: "That suggestion isn't there any more.",
   unauthorized: "Only an administrator can change this.",
   not_set_up: "Scene Setter isn't set up. Add it under Settings → Devices & services.",
 };
@@ -315,7 +316,7 @@ class SceneSetterBase extends HTMLElement {
 
   // ---- a room ----
 
-  _roomHtml(room, { settings = false } = {}) {
+  _roomHtml(room, { settings = false, suggestions = false } = {}) {
     const saved = this._saved(room);
     const editable = this._ordered(room.scenes.filter((s) => s.editable));
     const others = this._ordered(room.scenes.filter((s) => !s.editable));
@@ -329,6 +330,7 @@ class SceneSetterBase extends HTMLElement {
         <ha-icon icon="mdi:content-save-plus"></ha-icon>
         <span><b>Save current scene</b><small>${esc(room.name)}: ${esc(this._contents(room))}, as they are now</small></span>
       </button>
+      ${suggestions ? this._suggestionsHtml(room) : ""}
       <div class="label-row"><div class="label">Saved scenes</div>${this._sortHtml(editable.length)}</div>
       ${
         editable.length
@@ -376,6 +378,60 @@ class SceneSetterBase extends HTMLElement {
     return "";
   }
 
+  // ---- suggested scenes ----
+
+  // Settings the room's lights keep coming back to that no scene gives yet.
+  _suggestionsHtml(room) {
+    const found = room.suggestions || [];
+    if (!found.length) return "";
+    const data = (g) => `data-room="${esc(room.area_id)}" data-suggestion="${esc(g.id)}"`;
+    return `
+      <div class="label">Suggested</div>
+      <div class="suggestions">${found
+        .map(
+          (g) => `
+        <div class="suggestion">
+          <div class="sg-text">
+            <span class="sg-what">You've set the lights like this ${g.count} times on ${g.days} different days, usually around ${esc(g.usual_time)}.</span>
+            <div class="chips">${Object.entries(g.lights).map(([id, e]) => this._lookChip(room, id, e)).join("")}</div>
+          </div>
+          <div class="sg-actions">
+            <button class="btn small" data-action="sg-try" ${data(g)} title="Set the lights like this now">Try it</button>
+            <button class="btn small primary" data-action="sg-save" ${data(g)}>Save as scene…</button>
+            <button class="btn small quiet" data-action="sg-dismiss" ${data(g)} title="Don't suggest this again">Not useful</button>
+          </div>
+        </div>`
+        )
+        .join("")}</div>`;
+  }
+
+  // A light as a suggestion would set it (not as it is now).
+  _lookChip(room, id, e) {
+    const name = esc(this._shortName(room, this._hass.states[id]?.attributes?.friendly_name || id));
+    if (e.state !== "on") {
+      return `<span class="chip still"><ha-icon icon="mdi:lightbulb-outline"></ha-icon><span class="cname">${name}</span><span class="cstate">Off</span></span>`;
+    }
+    const bits = [e.brightness == null ? "On" : `${Math.max(1, Math.round((e.brightness / 255) * 100))}%`];
+    if (e.color_temp_kelvin) bits.push(`${Math.round(e.color_temp_kelvin / 10) * 10} K`);
+    else if (e.xy_color || e.hs_color || e.rgb_color || e.rgbw_color || e.rgbww_color) bits.push("colour");
+    const rgb = e.rgb_color || e.rgbw_color?.slice(0, 3) || e.rgbww_color?.slice(0, 3);
+    const style = Array.isArray(rgb) ? `--chip: rgb(${rgb.map(Number).join(",")})` : "";
+    return `<span class="chip still on" style="${style}"><ha-icon icon="mdi:lightbulb"></ha-icon><span class="cname">${name}</span><span class="cstate">${esc(bits.join(" · "))}</span></span>`;
+  }
+
+  _suggestionOf(roomId, id) {
+    return (this._room(roomId)?.suggestions || []).find((g) => g.id === id) || null;
+  }
+
+  async _suggestionCall(type, data, done) {
+    try {
+      await this._hass.callWS({ type, area_id: data.room, suggestion: data.suggestion });
+      if (done) this._toast(done);
+    } catch (err) {
+      this._toast(this._errorText(err));
+    }
+  }
+
   // ---- dialogs ----
 
   _dialogHtml() {
@@ -405,6 +461,15 @@ class SceneSetterBase extends HTMLElement {
             ? `<div class="over"><span>Or save over:</span>${existing.map((s) => `<button class="pill" data-action="pick-name" data-name="${esc(s.name)}">${esc(s.name)}</button>`).join("")}</div>`
             : ""
         }`;
+    } else if (d.kind === "suggest") {
+      const g = this._suggestionOf(d.room, d.suggestion);
+      title = "Save suggestion as a scene";
+      ok = "Save";
+      body = `
+        <p>${g ? esc(this._counts(Object.keys(g.lights))) : "The lights"} as suggested, not as they are now.</p>
+        <label>Name
+          <input type="text" id="name" maxlength="60" autocomplete="off" value="${esc(d.value || "")}">
+        </label>`;
     } else if (d.kind === "rename") {
       title = `Rename ${scene?.name || "scene"}`;
       ok = "Rename";
@@ -437,10 +502,12 @@ class SceneSetterBase extends HTMLElement {
       </div>`;
   }
 
-  _openDialog(kind, roomId, sceneId) {
+  _openDialog(kind, roomId, sceneId, suggestionId) {
     const room = this._room(roomId);
     const scene = sceneId ? room?.scenes.find((s) => s.entity_id === sceneId) : null;
-    this._dialog = { kind, room: roomId, scene: sceneId || null, value: kind === "rename" ? scene?.name || "" : "", error: null, busy: false };
+    let value = kind === "rename" ? scene?.name || "" : "";
+    if (kind === "suggest") value = this._suggestionOf(roomId, suggestionId)?.name || "";
+    this._dialog = { kind, room: roomId, scene: sceneId || null, suggestion: suggestionId || null, value, error: null, busy: false };
     this._render();
   }
 
@@ -497,6 +564,9 @@ class SceneSetterBase extends HTMLElement {
     if (d.kind === "save") msg = { type: "scene_setter/save", area_id: d.room, name: d.value || "" };
     else if (d.kind === "update") msg = { type: "scene_setter/save", area_id: d.room, scene: d.scene };
     else if (d.kind === "rename") msg = { type: "scene_setter/rename", scene: d.scene, name: d.value || "" };
+    else if (d.kind === "suggest") {
+      msg = { type: "scene_setter/save_suggestion", area_id: d.room, suggestion: d.suggestion, name: d.value || "" };
+    }
     else msg = { type: "scene_setter/delete", scene: d.scene };
     d.busy = true;
     d.error = null;
@@ -516,8 +586,9 @@ class SceneSetterBase extends HTMLElement {
   _doneText(kind, result, scene) {
     if (kind === "rename") return `Renamed to ${result.name}.`;
     if (kind === "delete") return `${scene?.name || "Scene"} deleted.`;
+    if (kind === "suggest") return `${result.name} saved: ${this._counts(result.saved)}.`;
     let text = `${result.name} ${result.created ? "saved" : "updated"}: ${this._counts(result.saved)}.`;
-    if (result.skipped.length) {
+    if (result.skipped?.length) {
       const names = result.skipped.map((e) => this._hass.states[e]?.attributes?.friendly_name || e);
       text += ` Left out because ${names.length === 1 ? "it" : "they"} can't be reached: ${names.join(", ")}.`;
     }
@@ -577,6 +648,12 @@ class SceneSetterBase extends HTMLElement {
         return;
       case "activate":
         return this._activate(data.room, data.scene);
+      case "sg-try":
+        return this._suggestionCall("scene_setter/try_suggestion", data, "Lights set as suggested.");
+      case "sg-save":
+        return this._openDialog("suggest", data.room, null, data.suggestion);
+      case "sg-dismiss":
+        return this._suggestionCall("scene_setter/dismiss_suggestion", data, "Won't suggest that again.");
       case "sort":
         this._sort = data.sort === "level" ? "level" : "name";
         savePref("sort", this._sort);
@@ -701,6 +778,7 @@ class SceneSetterPanel extends SceneSetterBase {
         <span class="roomhead">
           <ha-icon icon="${esc(room.icon || "mdi:floor-plan")}"></ha-icon>
           <span class="roomname">${esc(room.name)}</span>
+          ${room.suggestions?.length ? `<span class="sg-count" title="${plural(room.suggestions.length, "suggested scene")}"><ha-icon icon="mdi:lightbulb-auto-outline"></ha-icon>${room.suggestions.length}</span>` : ""}
           ${lit ? `<span class="lit" title="${plural(lit, "light")} on"><ha-icon icon="mdi:lightbulb"></ha-icon>${lit}</span>` : ""}
         </span>
         <span class="meta">${esc(this._contents(room))}</span>
@@ -719,7 +797,7 @@ class SceneSetterPanel extends SceneSetterBase {
       </div>
       <div class="card roomcard">
         <h1>${esc(room.name)}</h1>
-        ${this._roomHtml(room, { settings: this._admin })}
+        ${this._roomHtml(room, { settings: this._admin, suggestions: true })}
       </div>`;
   }
 
@@ -957,6 +1035,15 @@ const STYLES = `
   .save b { font-size:19px; font-weight:500; }
   .save small { font-size:13px; opacity:.9; }
   .scenes { display:flex; flex-direction:column; gap:8px; }
+  .suggestions { display:flex; flex-direction:column; gap:8px; }
+  .suggestion { border:1px dashed var(--primary-color); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; background: color-mix(in srgb, var(--primary-color) 5%, var(--card-background-color)); }
+  .sg-what { font-size:14px; display:block; margin-bottom:6px; }
+  .sg-actions { display:flex; flex-wrap:wrap; gap:6px; }
+  .btn.quiet { border-color: var(--divider-color); color: var(--secondary-text-color); }
+  .chip.still { cursor:default; }
+  .chip.still:hover { border-color: var(--divider-color); }
+  .sg-count { display:inline-flex; align-items:center; gap:2px; font-size:13px; color: var(--primary-color); }
+  .sg-count ha-icon { --mdc-icon-size:16px; }
   .scene { display:flex; align-items:stretch; border:1px solid var(--divider-color); border-radius:12px; overflow:hidden; background: var(--card-background-color); }
   .scene.active { border-color: var(--success-color, #43a047); background: color-mix(in srgb, var(--success-color, #43a047) 8%, var(--card-background-color)); }
   .scene.pressed { border-color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 14%, var(--card-background-color)); }

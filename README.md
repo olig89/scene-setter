@@ -4,13 +4,14 @@ Save a room's lights and blinds, as they are right now, as a named scene, for Ho
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.4.2).** Install through HACS as a custom repository.
+**Status: early development (0.5.0).** Install through HACS as a custom repository.
 
 ## What you get
 
 - **A sidebar page**, open to everyone in the household:
   - **Rooms**: every Home Assistant area that has lights or covers, grouped by floor, with its saved scenes.
   - **A room**: its lights and blinds as they are now (tap one to open its controls), a large **Save current scene** button, and its saved scenes. Tap a scene to turn it on. Each scene has **Update** (save the room as it is now over it), **Rename** and **Delete**. A scene the room currently matches is marked *On now*. Scenes are listed brightest first, or A–Z (every light's brightness in the scene added up), chosen with the switch above the list and remembered in that browser. Brightest first is the default.
+  - **Suggested scenes**: when the lights in a room keep ending up much the same way and no saved scene gives that, the room offers it: "You've set the lights like this 6 times on 5 different days, usually around 21:00", with the lights as the scene would set them. **Try it** sets the lights that way now, **Save as scene…** saves it under a name (one is offered from the time of day), and **Not useful** means it is never suggested again. The rooms list shows how many suggestions each room has. See *Suggested scenes* below.
   - **What this room saves** (administrators only): untick a light or blind the room's scenes should leave alone, or add one from another area.
 - **A dashboard card** with the same room view, for a room's own dashboard:
 
@@ -26,7 +27,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 ## How it works
 
 - **Rooms are areas.** A room saves every light and cover that Home Assistant puts in the area, directly or through its device. Hidden and disabled entities are left out.
-- **Scenes are Home Assistant's own.** They are written to `scenes.yaml`, the file the scene editor uses, so they survive a restart, open in the scene editor, and can be deleted there too. Nothing is kept anywhere else.
+- **Scenes are Home Assistant's own.** They are written to `scenes.yaml`, the file the scene editor uses, so they survive a restart, open in the scene editor, and can be deleted there too. Scene Setter keeps no copy of them anywhere else.
 - **A scene belongs to its room through its area.** "Evening" in the Kitchen is called *Kitchen Evening* in Home Assistant, with the entity `scene.kitchen_evening`, so every room can have its own "Evening". Any scene made in Home Assistant and given the room's area shows up in the room and can be updated, renamed and deleted there, whichever tool made it. Scenes from other integrations (the Hue app's) are listed and can be turned on, but not changed.
 - **Renaming keeps the entity ID.** A wall button or routine pointing at `scene.kitchen_evening` keeps working after the scene is renamed or updated.
 - **Your default white.** Scenes made with the Create action give every light with colour a white. Choose yours under Settings → Devices & services → Scene Setter → Configure (2700 K to start). A scene can use another, and single lights can have their own.
@@ -37,6 +38,7 @@ Set the room how you like it (by hand, from a wall switch, from any app), press 
 - **Anything that can't be reached is left out**, not saved as off. Saving it as off would switch it off every time the scene is used once it comes back. The page says what was left out.
 - **Groups are saved as their members.** A light group in the room is replaced by the lights in it, so a scene never sets both a group and its members. This also brings in group members that have no area of their own.
 - **"Active" allows for rounding.** A light counts as matching within 5 of 255 brightness, 100 K of colour temperature, and a small step of colour; a blind within 3 % of its position and tilt. Anything unreachable is skipped. A light showing a colour when the scene wants a white counts as different. The sensor follows its scene: renamed with it, kept in its room, and removed when the scene is deleted.
+- **Suggested scenes come from Scene Setter's own notes.** Home Assistant's history keeps only whether a light was on or off, never its brightness or colour, so it can't show which settings a room keeps coming back to. Scene Setter notes each room's lights whenever they stay the same for two minutes with at least one on, after any change: from the app, a wall switch, an automation or another integration. A small nudge, or a setting a saved scene already gives, isn't noted as new. Settings count as much the same within about 10 % brightness, 300 K of colour temperature and a small step of colour. One is suggested once it has come back 4 times on at least 3 different days in the last 28 days. The suggested scene sets each light to the middle of how it was each time. The notes are kept on this machine only, in Home Assistant's own storage (`.storage/scene_setter.habits`), for 60 days. Lights only: blinds aren't suggested. Turn it all off under Settings → Devices & services → Scene Setter → Configure (*Suggest scenes from how the lights are used*). Suggestions start once a few days of notes have built up, since there is no older history to learn from.
 - **To keep something out of every scene**, give the entity or its device the label `scene_setter_ignore`. To keep it out of one room's scenes, untick it under *What this room saves*.
 
 ## Install

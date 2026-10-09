@@ -36,6 +36,7 @@ from homeassistant.util.yaml import dump, load_yaml
 from .const import ANY_SIGNAL, CONF_DEFAULT_WHITE, DEFAULT_WHITE_K, CONF_EXCLUDE, CONF_INCLUDE, CONF_NO_APOSTROPHES, CONF_ROOMS, DOMAIN, IGNORE_LABEL
 from .core.common import domain_of
 from .core.kinds import DOMAINS, entry_for, kind_of, takes_levels
+from .core.habits import Suggestion
 from .core.match import scene_level
 from .core.names import SceneNameError, clean_name, full_name, id_text, same_name, short_name
 
@@ -110,6 +111,7 @@ class SceneSetter:
         self.hass = hass
         self.entry = entry
         self._lock = asyncio.Lock()
+        self.habits: Any = None  # the HabitLog, while scene suggestions are on
 
     # ---- what a room holds ---------------------------------------------------
 
@@ -204,6 +206,15 @@ class SceneSetter:
         for entity_id in added:
             add(entity_id, None, True)
         return list(rows.values())
+
+    def room_lights(self) -> dict[str, list[str]]:
+        """Each room's lights that its scenes take in: {area id: [entity ids]}."""
+        out: dict[str, list[str]] = {}
+        for area in ar.async_get(self.hass).async_list_areas():
+            lights = [r.entity_id for r in self.rows(area.id) if r.status == SAVED and r.domain == "light"]
+            if lights:
+                out[area.id] = lights
+        return out
 
     # ---- the scenes of a room ------------------------------------------------
 
@@ -566,6 +577,47 @@ class SceneSetter:
         self._changed()
         return {"scene": entity.entity_id}
 
+    # ---- suggested scenes ----------------------------------------------------
+
+    def _room_suggestions(self, area_id: str) -> list[Suggestion]:
+        if self.habits is None:
+            return []
+        scenes = {s.name: s.entities for s in self.scenes(area_id) if s.entities}
+        return self.habits.suggestions(area_id, scenes)
+
+    def _suggestion(self, area_id: str, suggestion_id: str) -> tuple[ar.AreaEntry, Suggestion]:
+        area = ar.async_get(self.hass).async_get_area(area_id)
+        if area is None:
+            raise SceneSetterError("unknown_room", "That room doesn't exist.")
+        found = next((s for s in self._room_suggestions(area_id) if s.id == suggestion_id), None)
+        if found is None:
+            raise SceneSetterError("unknown_suggestion", "That suggestion isn't there any more.")
+        return area, found
+
+    async def async_try_suggestion(self, area_id: str, suggestion_id: str) -> dict[str, Any]:
+        """Set the room's lights as the suggestion would, to see it."""
+        _, suggestion = self._suggestion(area_id, suggestion_id)
+        await self.hass.services.async_call(SCENE, "apply", {CONF_ENTITIES: suggestion.lights}, blocking=True)
+        return {"lights": list(suggestion.lights)}
+
+    async def async_save_suggestion(self, area_id: str, suggestion_id: str, name: str) -> dict[str, Any]:
+        """Save a suggestion as a new scene in its room (never over another one)."""
+        area, suggestion = self._suggestion(area_id, suggestion_id)
+        try:
+            wanted = clean_name(name)
+        except SceneNameError as err:
+            raise SceneSetterError("invalid_name", str(err)) from err
+        if taken := next((s for s in self.scenes(area.id) if same_name(s.name, wanted)), None):
+            raise SceneSetterError("name_taken", f"This room already has a scene called {taken.name}.")
+        ((entity_id, _),) = await self._write([(area, wanted, None, suggestion.lights)])
+        self._changed()
+        return {"scene": entity_id, "name": wanted, "saved": list(suggestion.lights)}
+
+    def dismiss_suggestion(self, area_id: str, suggestion_id: str) -> None:
+        """Not useful: never offer this setting in this room again."""
+        _, suggestion = self._suggestion(area_id, suggestion_id)
+        self.habits.dismiss(suggestion)
+
     def set_room(self, area_id: str, exclude: list[str], include: list[str]) -> None:
         """Which lights and blinds the room saves (settings)."""
         if ar.async_get(self.hass).async_get_area(area_id) is None:
@@ -624,6 +676,17 @@ class SceneSetter:
                                 "level": scene_level(s.entities) if s.entities else None,
                             }
                             for s in scenes
+                        ],
+                        "suggestions": [
+                            {
+                                "id": g.id,
+                                "lights": g.lights,
+                                "count": g.count,
+                                "days": g.days,
+                                "usual_time": g.usual_time,
+                                "name": g.name,
+                            }
+                            for g in self._room_suggestions(area.id)
                         ],
                     },
                 )

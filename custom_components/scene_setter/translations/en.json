@@ -95,11 +95,13 @@
         "description": "Rooms, and what each one saves, are set on the Scene Setter page.",
         "data": {
           "no_apostrophes_in_ids": "Leave apostrophes out of new scene entity IDs",
-          "default_white_k": "Default white for scenes made from a brightness level"
+          "default_white_k": "Default white for scenes made from a brightness level",
+          "suggest_scenes": "Suggest scenes from how the lights are used"
         },
         "data_description": {
           "no_apostrophes_in_ids": "On: \"Oli's Office Dim\" gets the entity ID scene.olis_office_dim. Off: Home Assistant's usual scene.oli_s_office_dim. The name you see keeps its apostrophe either way, and scenes already saved keep their entity IDs.",
-          "default_white_k": "Used by the Create action for every light with colour when no white is given. Lower is warmer: about 2200 is candle-like, 2700 a warm bulb, 4000 neutral, 6500 daylight. Scenes saved from the room as it is keep each light's real colour."
+          "default_white_k": "Used by the Create action for every light with colour when no white is given. Lower is warmer: about 2200 is candle-like, 2700 a warm bulb, 4000 neutral, 6500 daylight. Scenes saved from the room as it is keep each light's real colour.",
+          "suggest_scenes": "On: Scene Setter notes how each room's lights are set whenever they stay the same for two minutes, and when much the same setting comes back on several days and no scene gives it, the room's page offers it as a scene. The notes stay on this machine for 60 days. Home Assistant's own history can't do this: it keeps only on and off for lights, not brightness or colour."
         }
       }
     }

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "scene_setter"
 NAME = "Scene Setter"
-VERSION = "0.4.2"  # must match manifest.json and the page (a test checks)
+VERSION = "0.5.0"  # must match manifest.json and the page (a test checks)
 
 CONF_ROOMS = "rooms"
 CONF_EXCLUDE = "exclude"
@@ -23,6 +23,10 @@ SERVICE_CREATE = "create"
 # the house's own setting (options flow), else this.
 CONF_DEFAULT_WHITE = "default_white_k"
 DEFAULT_WHITE_K = 2700
+
+# Suggest scenes from how the lights are used (keeps a short log of each room's lights).
+CONF_SUGGEST = "suggest_scenes"
+DEFAULT_SUGGEST = True
 
 # Sent on any change the page shows.
 ANY_SIGNAL = f"{DOMAIN}_any"

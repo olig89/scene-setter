@@ -25,6 +25,8 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     ANY_SIGNAL,
+    CONF_SUGGEST,
+    DEFAULT_SUGGEST,
     DOMAIN,
     FRONTEND_FILE,
     NAME,
@@ -36,6 +38,7 @@ from .const import (
     SERVICE_SAVE,
     STATIC_URL,
 )
+from .habits import HabitLog
 from .setter import SceneSetter, SceneSetterError
 from .websocket import async_register_websocket
 
@@ -157,8 +160,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+def _suggesting(entry: ConfigEntry) -> bool:
+    return bool(entry.options.get(CONF_SUGGEST, DEFAULT_SUGGEST))
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) -> bool:
-    entry.runtime_data = SceneSetter(hass, entry)
+    setter = entry.runtime_data = SceneSetter(hass, entry)
+    if _suggesting(entry):
+        setter.habits = HabitLog(hass, setter.room_lights)
+        await setter.habits.async_start()
 
     @callback
     def _changed(_event: Event | None = None) -> None:
@@ -193,11 +203,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) 
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: SceneSetterConfigEntry) -> None:
+    if _suggesting(entry) != (entry.runtime_data.habits is not None):
+        # Suggestions switched on or off: start or stop the log.
+        await hass.config_entries.async_reload(entry.entry_id)
+        return
     async_dispatcher_send(hass, ANY_SIGNAL)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: SceneSetterConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded and (habits := entry.runtime_data.habits) is not None:
+        await habits.async_stop()
+        entry.runtime_data.habits = None
     async_dispatcher_send(hass, ANY_SIGNAL)
     return unloaded
 

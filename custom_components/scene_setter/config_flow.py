@@ -1,8 +1,8 @@
 """Setup. There is nothing to fill in: rooms come from Home Assistant's areas.
 
 The options hold the room settings (set on the page) and two house-wide
-settings set here: apostrophes in entity IDs, and the default white for
-scenes made from a brightness level.
+settings set here: apostrophes in entity IDs, the default white for scenes
+made from a brightness level, and whether to suggest scenes.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_DEFAULT_WHITE, CONF_NO_APOSTROPHES, DEFAULT_WHITE_K, DOMAIN, NAME
+from .const import CONF_DEFAULT_WHITE, CONF_NO_APOSTROPHES, CONF_SUGGEST, DEFAULT_SUGGEST, DEFAULT_WHITE_K, DOMAIN, NAME
 
 
 class SceneSetterConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -53,6 +53,10 @@ class SceneSetterOptionsFlow(OptionsFlow):
                     ): selector.ColorTempSelector(
                         selector.ColorTempSelectorConfig(unit="kelvin", min=2000, max=6500)
                     ),
+                    vol.Required(
+                        CONF_SUGGEST,
+                        default=bool(self.config_entry.options.get(CONF_SUGGEST, DEFAULT_SUGGEST)),
+                    ): bool,
                 }
             ),
         )

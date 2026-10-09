@@ -22,7 +22,10 @@ from .setter import SceneSetter, SceneSetterError
 
 
 def async_register_websocket(hass: HomeAssistant) -> None:
-    for command in (ws_subscribe, ws_save, ws_rename, ws_delete, ws_save_room):
+    for command in (
+        ws_subscribe, ws_save, ws_rename, ws_delete, ws_save_room,
+        ws_try_suggestion, ws_save_suggestion, ws_dismiss_suggestion,
+    ):
         websocket_api.async_register_command(hass, command)
 
 
@@ -127,5 +130,33 @@ async def ws_save_room(hass: HomeAssistant, connection: websocket_api.ActiveConn
 
     async def action(setter: SceneSetter) -> None:
         setter.set_room(msg["area_id"], msg["exclude"], msg["include"])
+
+    await _run(hass, connection, msg, action)
+
+
+# Suggested scenes. Open to everyone who can use the page, like saving a scene.
+
+SUGGESTION = {vol.Required("area_id"): str, vol.Required("suggestion"): str}
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/try_suggestion", **SUGGESTION})
+@websocket_api.async_response
+async def ws_try_suggestion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _run(hass, connection, msg, lambda s: s.async_try_suggestion(msg["area_id"], msg["suggestion"]))
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): f"{DOMAIN}/save_suggestion", **SUGGESTION, vol.Required("name"): str}
+)
+@websocket_api.async_response
+async def ws_save_suggestion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _run(hass, connection, msg, lambda s: s.async_save_suggestion(msg["area_id"], msg["suggestion"], msg["name"]))
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/dismiss_suggestion", **SUGGESTION})
+@websocket_api.async_response
+async def ws_dismiss_suggestion(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    async def action(setter: SceneSetter) -> None:
+        setter.dismiss_suggestion(msg["area_id"], msg["suggestion"])
 
     await _run(hass, connection, msg, action)

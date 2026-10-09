@@ -355,7 +355,7 @@ async def test_options_switch_keeps_the_room_settings(hass, house):
     done = await hass.config_entries.options.async_configure(flow["flow_id"], {"no_apostrophes_in_ids": True})
 
     assert done["type"] == "create_entry"
-    assert house.entry.options == {"rooms": rooms, "no_apostrophes_in_ids": True, "default_white_k": 2700}
+    assert house.entry.options == {"rooms": rooms, "no_apostrophes_in_ids": True, "default_white_k": 2700, "suggest_scenes": True}
 
 
 async def create(hass: HomeAssistant, **data) -> dict:
