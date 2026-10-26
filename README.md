@@ -1,10 +1,22 @@
-# Scene Setter
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/olig89/scene-setter/main/custom_components/scene_setter/brand/dark_logo.png">
+    <img alt="Scene Setter" src="https://raw.githubusercontent.com/olig89/scene-setter/main/custom_components/scene_setter/brand/logo.png" height="72">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://hacs.xyz/docs/faq/custom_repositories/"><img alt="HACS custom repository" src="https://img.shields.io/badge/HACS-custom-41BDF5"></a>
+  <a href="https://github.com/olig89/scene-setter/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/olig89/scene-setter?color=7B5CD6"></a>
+  <img alt="Home Assistant 2026.9 or later" src="https://img.shields.io/badge/Home%20Assistant-2026.9%2B-18BCF2">
+  <a href="https://github.com/olig89/scene-setter/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/olig89/scene-setter/actions/workflows/tests.yml/badge.svg"></a>
+</p>
 
 Save a room's lights and blinds, as they are right now, as a named scene, for Home Assistant.
 
 Set the room how you like it (by hand, from a wall switch, from any app), press **Save current scene**, and give it a name. The result is an ordinary Home Assistant scene, so anything can turn it on: a wall button, an automation, [Room Routines](https://github.com/olig89/room-routines), a voice assistant.
 
-**Status: early development (0.5.0).** Install through HACS as a custom repository.
+**Status: early development (0.5.1).** Install through HACS as a custom repository.
 
 ## What you get
 
